@@ -53,8 +53,8 @@ args = None
 # Map text opcode to instruction decomposition info.
 # Str -> (opcode_value, src_len, tar_len, 3rd_len)
 OPCODE2BIN = {
-        'RHM': (0x0, 5, 3, 1),
-        'WHM': (0x1, 5, 3, 1),
+        'RHM': (0x0, 8, 3, 1),
+        'WHM': (0x1, 3, 8, 1),
         'RW': (0x2, 5, 0, 0),
         'MMC': (0x3, 3, 2, 2),
         'ACT': (0x4, 2, 3, 1),
