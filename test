@@ -1,0 +1,8 @@
+RHM 1, 2, 3
+WHM 1, 2, 3
+RW 0xab
+MMC 100, 2, 3
+MMC.C 100, 2, 3
+ACT 0xab, 12, 1
+NOP
+HLT
