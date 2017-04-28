@@ -98,6 +98,11 @@ def assemble(path, n):
             flag |= CONV_MASK
         if 'O' in flags:
             flag |= OVERWRITE_MASK
+        if 'Q' in flags:
+            flag |= FUNC_SIGMOID_MASK
+        if 'R' in flags:
+            flag |= FUNC_RELU_MASK
+
 
         # binary for flags
         bin_flags = flag.to_bytes(1, byteorder='little')
