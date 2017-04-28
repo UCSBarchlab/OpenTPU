@@ -10,9 +10,11 @@ class TPUSim(object):
     def __init__(self, program_filename, dram_filename, hostmem_filename):
         self.program = open(program_filename, 'rb')
         self.weight_memory = np.load(dram_filename)
+        assert self.weight_memory.dtype == np.int8, 'DRAM weight mem is not 8-bit ints'
         self.host_memory = np.load(hostmem_filename)
-        self.unified_buffer = np.zeros((96000, 256))
-        self.accumulator = np.zeros((4000, 256))
+        assert self.host_memory.dtype == np.int8, 'Hostmem not 8-bit ints'
+        self.unified_buffer = np.zeros((96000, 256), dtype=np.int8)
+        self.accumulator = np.zeros((4000, 256), dtype=np.int32)
         self.weight_fifo = []
 
     def run(self):
@@ -23,7 +25,6 @@ class TPUSim(object):
             if opcode in ['RHM', 'WHM', 'RW']:
                 self.memops(opcode, *operands)
             elif opcode == 'MMC':
-                # TODO: unpack like a decen tpernson
                 self.matrix_multiply_convolve(*operands)
             elif opcode == 'ACT':
                 self.act(*operands)
@@ -40,6 +41,11 @@ class TPUSim(object):
         # all done, exit
         np.save('unified_buffer.npy', self.unified_buffer)
         self.program.close()
+
+        print("""ALL DONE!
+        (•_•)
+        ( •_•)>⌐■-■
+        (⌐■_■)""")
 
     def decode(self):
         opcode = int.from_bytes(self.program.read(1), byteorder='little')
