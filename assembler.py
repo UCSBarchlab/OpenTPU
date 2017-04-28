@@ -68,6 +68,8 @@ CONV_MASK = 0x2
 
 TOP_LEVEL_SEP = re.compile(r'[a-zA-Z]+\s+')
 
+SUFFIX = '.out'
+
 def DEBUG(string):
     if args.debug:
         print(string)
@@ -83,7 +85,8 @@ def assemble(path, n):
         lines = code.readlines()
     code.close()
     n = len(lines) if not n else n
-    bin_code = open(path+'.a', 'wb')
+    write_path = path[:path.rfind('.')] if path.rfind('.') > -1 else path
+    bin_code = open(write_path+SUFFIX, 'wb')
     counter = 0
     for line in lines:
         line = line.partition('#')[0]
