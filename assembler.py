@@ -45,6 +45,7 @@ SRC/TAR takes 5B for memory operations to support at least 8GB addressing,
 
 import argparse
 import re
+from isa import *
 
 args = None
 
