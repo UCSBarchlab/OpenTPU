@@ -1,25 +1,12 @@
-#!/usr/bin/env python
-
-import argparse
-import re
-
-args = None
-
 """
+===assembly====
+
 Instruction has the following format:
-INST: OP, SRC, TAR, LEN (or FUNC), FLAG
-LENGTH: 1B, VAR, VAR, 1B, 1B
+    INST: OP, SRC, TAR, LEN (or FUNC), FLAG
+    LENGTH: 1B, VAR, VAR, 1B, 1B
 
 OPCODE may define flags by using dot (.) seperator following
 opcode string.
-
-SRC and TAR can be of variable length defined in global dict
-OPCODE2BIN.
-
-SRC and TAR are addresses.
-They take 5B for memory operations to support at least 8GB addressing,
-3B for Unified Buffer addressing (96KB), 2B for accumulator buffer addressing
-(4K).
 
 EXAMPLES:
     RHM 1, 2, 3
@@ -30,7 +17,28 @@ EXAMPLES:
     ACT 0xab, 12, 1
     NOP
     HLT
+
+===binary encoding====
+INST is encoded in a little-endian format.
+OPCODE values are defined in OPCODE2BIN.
+FLAG field is r|r|r|r|r|r|s|c, r stands for reserved, s for switch,
+c for convolve.
+
+SRC and TAR are addresses. They can be of variable length defined in
+global dict OPCODE2BIN.
+
+SRC/TAR takes 5B for memory operations to support at least 8GB addressing,
+3B for Unified Buffer addressing (96KB), 2B for accumulator buffer addressing
+(4K).
+
 """
+
+
+import argparse
+import re
+
+args = None
+
 
 # Map text opcode to instruction decomposition info.
 # Str -> (opcode_value, src_len, tar_len, 3rd_len)
