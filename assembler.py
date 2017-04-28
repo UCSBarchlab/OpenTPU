@@ -50,6 +50,12 @@ CONV_MASK = 0x2
 
 TOP_LEVEL_SEP = re.compile(r'[a-zA-Z]+\s+')
 
+def DEBUG(string):
+    if args.debug:
+        print(string)
+    else:
+        return
+
 def assemble(path, n):
     """ Translates an assembly code file into a binary.
     """
@@ -97,8 +103,9 @@ def assemble(path, n):
             bin_oprands += oprands[0].to_bytes(n_src, byteorder='little')
             bin_oprands += oprands[1].to_bytes(n_tar, byteorder='little')
             bin_oprands += oprands[2].to_bytes(n_3rd, byteorder='little')
-
         bin_rep = bin_opcode + bin_oprands + bin_flags
+        DEBUG(line[:-1])
+        DEBUG(bin_rep)
         bin_code.write(bin_rep)
     bin_code.close()
 
@@ -111,7 +118,8 @@ def parse_args():
 	    help='path to source file.')
     parser.add_argument('--n', action='store', type=int, default=0,
             help='only parse first n lines of code, for dbg only.')
-
+    parser.add_argument('--debug', action='store_true',
+            help='switch debug prints.')
     args = parser.parse_args()
 
 if __name__ == '__main__':
