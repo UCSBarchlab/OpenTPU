@@ -73,14 +73,19 @@ class TPUSim(object):
         else:
             raise Exception('WAT (╯°□°）╯︵ ┻━┻')
 
-    def matrix_multiply_convolve(self, ub_addr, accumulator_addr, size, flags):
+    def matrix_multiply_convolve(self, ub_addr, accum_addr, size, flags):
         print('Matrix things....')
         print('  UB@{} + {} -> MMU -> accumulator@{} + {}'.format(
-            ub_addr, size, accumulator_addr, size
+            ub_addr, size, accum_addr, size
         ))
 
         inp = self.unified_buffer[ub_addr: ub_addr + size]
         out = np.matmul(inp, self.weight_fifo.pop(0))
+        overwrite = isa.OVERWRITE_MASK | flags
+        if overwrite:
+            self.accumulator[accum_addr:accum_addr + size] = out
+        else:
+            self.accumulator[accum_addr:accum_addr + size] += out
 
 
 if __name__ == '__main__':
