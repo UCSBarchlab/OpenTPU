@@ -99,7 +99,6 @@ def assemble(path, n):
             bin_oprands += oprands[2].to_bytes(n_3rd, byteorder='little')
 
         bin_rep = bin_opcode + bin_oprands + bin_flags
-        print(bin_rep)
         bin_code.write(bin_rep)
     bin_code.close()
 
