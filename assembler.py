@@ -8,8 +8,17 @@ Instruction has the following format:
 OPCODE may define flags by using dot (.) seperator following
 opcode string.
 
+For ACT instruction, function byte is defined using the following
+mapping:
+    0x0 -> ReLU
+    0x1 -> Sigmoid
+    0x2 -> MaxPooling
+
+Comments start with #.
+
 EXAMPLES:
-    RHM 1, 2, 3
+    # example program
+    RHM 1, 2, 3 # first instruction
     WHM 1, 2, 3
     RW 0xab
     MMC 100, 2, 3
@@ -19,10 +28,11 @@ EXAMPLES:
     HLT
 
 ===binary encoding====
+
 INST is encoded in a little-endian format.
 OPCODE values are defined in OPCODE2BIN.
-FLAG field is r|r|r|r|r|r|s|c, r stands for reserved, s for switch,
-c for convolve.
+FLAG field is r|r|r|r|r|r|s|c, r stands for reserved bit, s for switch bit,
+c for convolve bit.
 
 SRC and TAR are addresses. They can be of variable length defined in
 global dict OPCODE2BIN.
@@ -74,10 +84,15 @@ def assemble(path, n):
     code.close()
     n = len(lines) if not n else n
     bin_code = open(path+'.a', 'wb')
-    for line in lines[:n]:
+    counter = 0
+    for line in lines:
+        line = line.partition('#')[0]
+        if not line:
+            continue
+        counter += 1
         oprands = TOP_LEVEL_SEP.split(line)[1]
         oprands = [int(op.strip(), 0) for op in oprands.split(',')] if oprands else []
-        opcode = line.split()[0]
+        opcode = line.split()[0].strip()
         assert opcode
         comps = opcode.split('.')
         assert comps and len(comps) < 3
@@ -94,14 +109,15 @@ def assemble(path, n):
         if 'C' in flags:
             flag |= CONV_MASK
 
-        # python3
+        # binary for flags
         bin_flags = flag.to_bytes(1, byteorder='little')
 
         opcode, n_src, n_tar, n_3rd = OPCODE2BIN[opcode]
 
-        # binary representation for opcode.
+        # binary representation for opcode
         bin_opcode = opcode.to_bytes(1, byteorder='little')
 
+        # binary for oprands
         bin_oprands = b''
         if len(oprands) == 0:
             bin_oprands = b''
@@ -111,10 +127,18 @@ def assemble(path, n):
             bin_oprands += oprands[0].to_bytes(n_src, byteorder='little')
             bin_oprands += oprands[1].to_bytes(n_tar, byteorder='little')
             bin_oprands += oprands[2].to_bytes(n_3rd, byteorder='little')
+
+        # binary for instruction
         bin_rep = bin_opcode + bin_oprands + bin_flags
+
         DEBUG(line[:-1])
         DEBUG(bin_rep)
+
+        # write to file
         bin_code.write(bin_rep)
+
+        if counter == n:
+            break
     bin_code.close()
 
 def parse_args():
