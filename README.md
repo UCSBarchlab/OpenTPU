@@ -13,7 +13,13 @@ The major sub units/components of the project are as follows:
 6. Assembler
 
 Current supported instructions:
-1. MM()
-2. Activate()
-3. Synch()
-4. ...
+RHM:  ()
+WHM:  ()
+RW:   ()
+MMC:  ()
+ACT:  ()
+SYNC: ()
+NOP:  ()
+HLT:  ()
+
+
