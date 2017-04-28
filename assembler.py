@@ -5,7 +5,7 @@ Instruction has the following format:
     INST: OP, SRC, TAR, LEN (or FUNC), FLAG
     LENGTH: 1B, VAR, VAR, 1B, 1B
 
-OPCODE may define flags by using dot (.) seperator following
+OPCODE may define flags by using dot (.) separator following
 opcode string.
 
 For ACT instruction, function byte is defined using the following
@@ -43,12 +43,10 @@ SRC/TAR takes 5B for memory operations to support at least 8GB addressing,
 
 """
 
-
 import argparse
 import re
 
 args = None
-
 
 # Map text opcode to instruction decomposition info.
 # Str -> (opcode_value, src_len, tar_len, 3rd_len)
@@ -70,11 +68,13 @@ TOP_LEVEL_SEP = re.compile(r'[a-zA-Z]+\s+')
 
 SUFFIX = '.out'
 
+
 def DEBUG(string):
     if args.debug:
         print(string)
     else:
         return
+
 
 def assemble(path, n):
     """ Translates an assembly code file into a binary.
@@ -86,15 +86,15 @@ def assemble(path, n):
     code.close()
     n = len(lines) if not n else n
     write_path = path[:path.rfind('.')] if path.rfind('.') > -1 else path
-    bin_code = open(write_path+SUFFIX, 'wb')
+    bin_code = open(write_path + SUFFIX, 'wb')
     counter = 0
     for line in lines:
         line = line.partition('#')[0]
         if not line:
             continue
         counter += 1
-        oprands = TOP_LEVEL_SEP.split(line)[1]
-        oprands = [int(op.strip(), 0) for op in oprands.split(',')] if oprands else []
+        operands = TOP_LEVEL_SEP.split(line)[1]
+        operands = [int(op.strip(), 0) for op in operands.split(',')] if operands else []
         opcode = line.split()[0].strip()
         assert opcode
         comps = opcode.split('.')
@@ -121,18 +121,18 @@ def assemble(path, n):
         bin_opcode = opcode.to_bytes(1, byteorder='little')
 
         # binary for oprands
-        bin_oprands = b''
-        if len(oprands) == 0:
-            bin_oprands = b''
-        elif len(oprands) == 1:
-            bin_oprands = oprands[0].to_bytes(n_src, byteorder='little')
-        elif len(oprands) == 3:
-            bin_oprands += oprands[0].to_bytes(n_src, byteorder='little')
-            bin_oprands += oprands[1].to_bytes(n_tar, byteorder='little')
-            bin_oprands += oprands[2].to_bytes(n_3rd, byteorder='little')
+        bin_operands = b''
+        if len(operands) == 0:
+            bin_operands = b''
+        elif len(operands) == 1:
+            bin_operands = operands[0].to_bytes(n_src, byteorder='little')
+        elif len(operands) == 3:
+            bin_operands += operands[0].to_bytes(n_src, byteorder='little')
+            bin_operands += operands[1].to_bytes(n_tar, byteorder='little')
+            bin_operands += operands[2].to_bytes(n_3rd, byteorder='little')
 
         # binary for instruction
-        bin_rep = bin_opcode + bin_oprands + bin_flags
+        bin_rep = bin_opcode + bin_operands + bin_flags
 
         DEBUG(line[:-1])
         DEBUG(bin_rep)
@@ -144,20 +144,21 @@ def assemble(path, n):
             break
     bin_code.close()
 
+
 def parse_args():
     global args
 
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--path', action='store',
-	    help='path to source file.')
+                        help='path to source file.')
     parser.add_argument('--n', action='store', type=int, default=0,
-            help='only parse first n lines of code, for dbg only.')
+                        help='only parse first n lines of code, for dbg only.')
     parser.add_argument('--debug', action='store_true',
-            help='switch debug prints.')
+                        help='switch debug prints.')
     args = parser.parse_args()
+
 
 if __name__ == '__main__':
     parse_args()
     assemble(args.path, args.n)
-
