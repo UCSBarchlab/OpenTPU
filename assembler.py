@@ -5,6 +5,35 @@ import re
 
 args = None
 
+"""
+Instruction has the following format:
+INST: OP, SRC, TAR, LEN (or FUNC), FLAG
+LENGTH: 1B, VAR, VAR, 1B, 1B
+
+OPCODE may define flags by using dot (.) seperator following
+opcode string.
+
+SRC and TAR can be of variable length defined in global dict
+OPCODE2BIN.
+
+SRC and TAR are addresses.
+They take 5B for memory operations to support at least 8GB addressing,
+3B for Unified Buffer addressing (96KB), 2B for accumulator buffer addressing
+(4K).
+
+EXAMPLES:
+    RHM 1, 2, 3
+    WHM 1, 2, 3
+    RW 0xab
+    MMC 100, 2, 3
+    MMC.C 100, 2, 3
+    ACT 0xab, 12, 1
+    NOP
+    HLT
+"""
+
+# Map text opcode to instruction decomposition info.
+# Str -> (opcode_value, src_len, tar_len, 3rd_len)
 OPCODE2BIN = {
         'RHM': (0x0, 5, 3, 1),
         'WHM': (0x1, 5, 3, 1),
@@ -21,7 +50,7 @@ CONV_MASK = 0x2
 
 TOP_LEVEL_SEP = re.compile(r'[a-zA-Z]+\s+')
 
-def assemble(path):
+def assemble(path, n):
     """ Translates an assembly code file into a binary.
     """
 
@@ -29,12 +58,13 @@ def assemble(path):
     with open(path, 'r') as code:
         lines = code.readlines()
     code.close()
-
+    n = len(lines) if not n else n
     bin_code = open(path+'.a', 'wb')
-    for line in lines:
+    for line in lines[:n]:
         oprands = TOP_LEVEL_SEP.split(line)[1]
         oprands = [int(op.strip(), 0) for op in oprands.split(',')] if oprands else []
         opcode = line.split()[0]
+        assert opcode
         comps = opcode.split('.')
         assert comps and len(comps) < 3
         if len(comps) == 1:
@@ -69,6 +99,7 @@ def assemble(path):
             bin_oprands += oprands[2].to_bytes(n_3rd, byteorder='little')
 
         bin_rep = bin_opcode + bin_oprands + bin_flags
+        print(bin_rep)
         bin_code.write(bin_rep)
     bin_code.close()
 
@@ -79,10 +110,12 @@ def parse_args():
 
     parser.add_argument('--path', action='store',
 	    help='path to source file.')
+    parser.add_argument('--n', action='store', type=int, default=0,
+            help='only parse first n lines of code, for dbg only.')
 
     args = parser.parse_args()
 
 if __name__ == '__main__':
     parse_args()
-    assemble(args.path)
+    assemble(args.path, args.n)
 
