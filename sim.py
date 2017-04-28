@@ -1,6 +1,8 @@
 # coding=utf-8
 import sys
 import numpy as np
+from math import exp
+
 import isa
 
 
@@ -54,7 +56,21 @@ class TPUSim(object):
         print('sink')
 
     def act(self, src, dest, length, flag):
-        print('ACTIVATE! (or pool?)')
+        print('ACTIVATE!')
+
+        result = self.accumulator[src:src+length]
+        if flag & isa.FUNC_RELU_MASK:
+            print('  RELU!!!!')
+            vfunc = np.vectorize(lambda x: 0 if x < 0 else 255)
+        elif flag & isa.FUNC_SIGMOID_MASK:
+            print('  SIGMOID')
+            vfunc = np.vectorize(lambda x: int(255/(1+exp(-x))))
+        else:
+            raise Exception('(╯°□°）╯︵ ┻━┻ bad activation function!')
+
+        result = vfunc(result)
+
+        self.unified_buffer[dest:dest+length] = result
 
     def memops(self, opcode, src_addr, dest_addr, length, flag):
         print('Memory xfer! host: {} unified buffer: {}: length: {} (FLAGS? {})'.format(
@@ -81,7 +97,7 @@ class TPUSim(object):
 
         inp = self.unified_buffer[ub_addr: ub_addr + size]
         out = np.matmul(inp, self.weight_fifo.pop(0))
-        overwrite = isa.OVERWRITE_MASK | flags
+        overwrite = isa.OVERWRITE_MASK & flags
         if overwrite:
             self.accumulator[accum_addr:accum_addr + size] = out
         else:

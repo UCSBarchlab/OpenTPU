@@ -39,5 +39,5 @@ BIN2OPCODE = {v[0]: k for k, v in OPCODE2BIN.items()}
 SWITCH_MASK = 0x1
 CONV_MASK = 0x2
 OVERWRITE_MASK = 0x4 # whether MMC should overwrite accumulator value or add to it
-FUNC_SIGMOID_MASK = 0b000 << 3
-FUNC_RELU_MASK = 0b001 << 3
+FUNC_SIGMOID_MASK = 0b001 << 3
+FUNC_RELU_MASK = 0b010 << 3
