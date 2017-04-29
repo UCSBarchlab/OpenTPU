@@ -6,7 +6,7 @@ args = None
 def gen_one_hot():
     one_hot = np.zeros((8, 8))
     for i in xrange(8):
-        one_hot[i, i] = 1
+        one_hot[i, i] = np.int8(1)
     return one_hot
 
 def gen_nn(path, shape, lower=None, upper=None):
