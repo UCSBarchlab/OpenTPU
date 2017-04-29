@@ -1,13 +1,12 @@
 import argparse
 import numpy as np
 
-
 args = None
 
-def gen_mem(path, fill):
-    print fill.shape
-    print type(fill[0][0])
-    np.save(path, fill)
+def gen_nn(path, shape, lower=None, upper=None):
+    nn = np.random.randint(lower, upper, shape, dtype=np.int8)
+    print(nn)
+    np.save(path, nn)
 
 def parse_args():
     global args
@@ -20,10 +19,11 @@ def parse_args():
                         help = 'shape of matrix to generate.')
     parser.add_argument('--debug', action='store_true',
                         help='switch debug prints.')
+    parser.add_argument('--range', type=int, nargs=2,
+                        help='gen rand in [lower, upper)')
     args = parser.parse_args()
 
 
 if __name__ == '__main__':
     parse_args()
-    mem = np.random.rand(*args.shape)
-    gen_mem(args.path, mem)
+    gen_nn(args.path, args.shape, *args.range)
