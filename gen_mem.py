@@ -5,8 +5,6 @@ import numpy as np
 args = None
 
 def gen_mem(path, fill):
-    print fill.shape
-    print type(fill[0][0])
     np.save(path, fill)
 
 def parse_args():

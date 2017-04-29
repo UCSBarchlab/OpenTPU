@@ -60,7 +60,7 @@ def float2byte(mat):
     pos_mat = np.vectorize(lambda x: np.abs(x))(mat)
     max_w = np.amax(pos_mat)
     mat = np.vectorize(lambda x: (127 * x/max_w).astype(np.int8))(mat)
-    return mat
+    return mat.reshape(1, 8, 8)
 
 def parse_args():
     global args
