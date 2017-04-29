@@ -3,8 +3,15 @@ import numpy as np
 
 args = None
 
+def gen_one_hot():
+    one_hot = np.zeros((8, 8))
+    for i in xrange(8):
+        one_hot[i, i] = 1
+    return one_hot
+
 def gen_nn(path, shape, lower=None, upper=None):
     nn = np.random.randint(lower, upper, shape, dtype=np.int8)
+    nn = gen_one_hot()
     print(nn)
     np.save(path, nn)
 
