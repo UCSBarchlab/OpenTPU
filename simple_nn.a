@@ -1,10 +1,9 @@
 # Host mem: N x 8 input matrix
 # Weight mem: 8 x 8 weight matrix
-
-RHM 0, 0, 4   # read from host mem addr 0, to UB addr 0, for length N = 4
+RHM 0, 0, 8   # read from host mem addr 0, to UB addr 0, for length N = 4
 RW  0         # read weights from dram addr 0 to FIFO
-MMC 0, 0, 4   # Do MM on UB addr 0, to accumulator addr 0, for length 4
-ACT.R 0, 4, 4 # Do ACT ReLU on accumulator addr 0, to UB addr 4, for length 4
+MMC 0, 0, 8   # Do MM on UB addr 0, to accumulator addr 0, for length 4
+ACT.Q 0, 0, 8 # Do ACT ReLU on accumulator addr 0, to UB addr 4, for length 4
 SYNC          
-WHM 4, 4, 4   # write result from UB addr 4, to host mem addr 4, for length 4
+WHM 0, 0, 8   # write result from UB addr 4, to host mem addr 4, for length 4
 HLT

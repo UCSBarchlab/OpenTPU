@@ -5,6 +5,9 @@ from math import exp
 
 import isa
 
+# width of the tile
+WIDTH = 8
+
 
 class TPUSim(object):
     def __init__(self, program_filename, dram_filename, hostmem_filename):
@@ -13,8 +16,8 @@ class TPUSim(object):
         assert self.weight_memory.dtype == np.int8, 'DRAM weight mem is not 8-bit ints'
         self.host_memory = np.load(hostmem_filename)
         assert self.host_memory.dtype == np.int8, 'Hostmem not 8-bit ints'
-        self.unified_buffer = np.zeros((96000, 256), dtype=np.int8)
-        self.accumulator = np.zeros((4000, 256), dtype=np.int32)
+        self.unified_buffer = np.zeros((96000, WIDTH), dtype=np.int8)
+        self.accumulator = np.zeros((4000, WIDTH), dtype=np.int32)
         self.weight_fifo = []
 
     def run(self):
@@ -29,7 +32,7 @@ class TPUSim(object):
             elif opcode == 'ACT':
                 self.act(*operands)
             elif opcode == 'SYNC':
-                self.sync(*operands)
+                pass
             elif opcode == 'NOP':
                 print('No operation')
             elif opcode == 'HLT':
@@ -58,9 +61,6 @@ class TPUSim(object):
         return opcode, src_addr, dest_addr, length, flag
 
     # opcodes
-    def sync(self, flags):
-        print('sink')
-
     def act(self, src, dest, length, flag):
         print('ACTIVATE!')
 
