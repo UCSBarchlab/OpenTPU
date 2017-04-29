@@ -1,8 +1,8 @@
 # Simple matrix multiplication.
 RHM 0, 0, 1 # Read from Host at addr 0, to UB addr 0 for 1 256B vector
 RW 0
-MMC.S 1, 0, 1
-ACT 0, 0, 0
+MMC.S 0, 0, 1
+ACT.Q 0, 0, 1
 WHM 0, 0, 1
 NOP
 HLT
