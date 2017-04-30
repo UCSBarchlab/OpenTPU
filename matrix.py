@@ -1,10 +1,10 @@
 from pyrtl import *
 
-set_debug_mode()
+#set_debug_mode()
 
 DATWIDTH = 8
 MATSIZE = 4
-ACCSIZE = 512
+ACCSIZE = 8
 
 def MAC(data_width, matrix_size, data_in, acc_in, switchw, weight_in, weight_we, weight_tag):
     '''Multiply-Accumulate unit with programmable weight.
@@ -356,24 +356,37 @@ def systolic_setup(matsize, vec_in, waddr, valid, clearbit, lastvec, switch):
     return lastcolumn, switchout, addrout, weout, clearout, doneout
 
 
-def MMU(data_width, matrix_size, accum_size, vector_in, accum_raddr, accum_waddr, vec_valid, accum_overwrite, lastvec, switch_weights, ddr_data, ddr_valid):
+def MMU(data_width, matrix_size, accum_size, vector_in, accum_raddr, accum_waddr, vec_valid, accum_overwrite, lastvec, switch_weights, ddr_data, ddr_valid, weights_in, weights_we):
+    '''
 
+    weights_in: TEMPORARY signal coming from off-chip with full weights tile. Replace this with the weights FIFO.
+    weights_we: write enable for weights_in.
+    '''
+    
     logn1 = 1
     while pow(2, logn1) < (matrix_size + 1):
         logn1 = logn1 << 1
     logn = 1
     while pow(2, logn) < (matrix_size):
         logn = logn << 1
-    weights_wait = Register(logn1)
-    weights_count = Register(logn)
+    weights_wait = Register(logn1)  # counts cycles since last weight push
+    weights_count = Register(logn)  # counts cycles of current weight push
     startup = Register(1)
     startup.next <<= 1  # 0 only in first cycle
     weights_we = WireVector(1)
     done_programming = WireVector(1)
 
-    rtl_assert(~(switch_weights & (weights_wait != 0)), Exception("Weights are not ready to switch. Need a minimum of {} + 1 cycles since last switch.".format(matrix_size)))
-    
-    weights_tile, tile_ready, full = FIFO(matsize=matrix_size, mem_data=ddr_data, mem_valid=ddr_valid, next_tile=done_programming)
+    #rtl_assert(~(switch_weights & (weights_wait != 0)), Exception("Weights are not ready to switch. Need a minimum of {} + 1 cycles since last switch.".format(matrix_size)))
+
+    # FIFO is broken ;(
+    #weights_tile, tile_ready, full = FIFO(matsize=matrix_size, mem_data=ddr_data, mem_valid=ddr_valid, next_tile=done_programming)
+    # Instead:
+    weights_tile = Register(data_width * matrix_size * matrix_size)
+    tile_ready = Register(1)
+    with conditional_assignment:
+        with weights_we:
+            weights_tile.next |= weights_in
+            tile_ready.next |= 1
     
     matin, switchout, addrout, weout, clearout, doneout = systolic_setup(matsize=matrix_size, vec_in=vector_in, waddr=accum_waddr, valid=vec_valid, clearbit=accum_overwrite, lastvec=lastvec, switch=switch_weights)
 
@@ -416,25 +429,28 @@ Control signals propagating down systolic_setup to accumulators:
 -Done signal?
 '''
 
-def testall(input_vectors, weights):
+def testall(input_vectors, weights_vectors):
     L = len(input_vectors)
     
     ins = [probe(Input(DATWIDTH)) for i in range(MATSIZE)]
     invec = concat_list(ins)
     swap = Input(1, 'swap')
-    ws = [ Const(item, bitwidth=DATWIDTH) for sublist in weights for item in sublist ]  # flatten weight matrix
     waddr = Input(8)
     lastvec = Input(1)
     valid = Input(1)
-    raddr = Input(12, "raddr")
+    raddr = Input(8, "raddr")  # accumulator read address to read out answers
     donesig = Output(1, "done")
+    weights_we = Input(1)
 
     outs = [Output(32, name="out{}".format(str(i))) for i in range(MATSIZE)]
 
-    memdata = Input(64*8)
-    memvalid = Input(1)
+    ws = [ Const(item, bitwidth=DATWIDTH) for sublist in weights_vectors for item in sublist ]  # flatten weight matrix
+    ws = concat_list(ws)
     
-    accout, done = MMU(data_width=DATWIDTH, matrix_size=MATSIZE, accum_size=ACCSIZE, vector_in=invec, accum_raddr=raddr, accum_waddr=waddr, vec_valid=valid, accum_overwrite=Const(0), lastvec=lastvec, switch_weights=swap, ddr_data=memdata, ddr_valid=memvalid)
+    #memdata = Input(64*8)
+    #memvalid = Input(1)
+    
+    accout, done = MMU(data_width=DATWIDTH, matrix_size=MATSIZE, accum_size=ACCSIZE, vector_in=invec, accum_raddr=raddr, accum_waddr=waddr, vec_valid=valid, accum_overwrite=Const(0), lastvec=lastvec, switch_weights=swap, ddr_data=Const(0), ddr_valid=Const(0), weights_in=ws, weights_we=weights_we)
 
     donesig <<= done
     for out, accout in zip(outs, accout):
@@ -443,6 +459,7 @@ def testall(input_vectors, weights):
     sim_trace = SimulationTrace()
     sim = FastSimulation(tracer=sim_trace)
 
+    '''
     # First, simulate memory read to feed weights to FIFO
     ws = concat_list(ws)  # combine weights into single wire
     chunk = 64*8  # size of one dram read
@@ -455,50 +472,55 @@ def testall(input_vectors, weights):
     # Wait until the FIFO is ready
     for i in range(10):
         sim.step()
+    '''
+
+    # make a default input dictionary
+    din = { swap:0, waddr:0, lastvec:0, valid:0, raddr:0, weights_we:0 }
+    din.update({ins[j]:0 for j in range(MATSIZE)})
     
     # Send signal to write weights
-    d = {ins[j] : 0 for j in range(MATSIZE) }
-    d.update({ we : 1, swap : 0, waddr : 0, lastvec : 0, valid : 0, raddr : 0 })
+    d = din.copy()
+    d[weights_we] = 1
     sim.step(d)
 
     # Wait MATSIZE cycles for weights to propagate
-    for i in range(MATSIZE):
-        d = {ins[j] : 0 for j in range(MATSIZE) }
-        d.update({ we : 0, swap : 0, waddr : 0, lastvec : 0, valid : 0, raddr : 0 })
-        sim.step(d)
+    for i in range(MATSIZE+2):
+        sim.step(din)
 
     # Send the swap signal with first row of input
-    d = {ins[j] : input_vectors[0][j] for j in range(MATSIZE) }
-    d.update({ we : 0, swap : 1, waddr : 0, lastvec : 0, valid : 1, raddr : 0 })
+    d = din.copy()
+    d.update({ins[j] : input_vectors[0][j] for j in range(MATSIZE) })
+    d.update({ swap : 1, valid : 1 })
     sim.step(d)
 
     # Send rest of input
     for i in range(L-1):
-        d = {ins[j] : input_vectors[i+1][j] for j in range(MATSIZE) }
-        d.update({ we : 0, swap : 0, waddr : i+1, lastvec : 1 if i == L-2 else 0, valid : 1, raddr : 0 })
+        d = din.copy()
+        d.update({ins[j] : input_vectors[i+1][j] for j in range(MATSIZE) })
+        d.update({ waddr : i+1, lastvec : 1 if i == L-2 else 0, valid : 1 })
         sim.step(d)
 
     # Wait some cycles while it propagates
     for i in range(L*2):
-        d = {ins[j] : 0 for j in range(MATSIZE) }
-        d.update({ we : 0, swap : 0, waddr : 0, lastvec : 0, valid : 0, raddr : 0 })
+        d = din.copy()
         sim.step(d)
 
     # Read out values
     for i in range(L):
-        d = {ins[j] : 0 for j in range(MATSIZE) }
-        d.update({ we : 0, swap : 0, waddr : 0, lastvec : 0, valid : 0, raddr : i })
+        d = din.copy()
+        d[raddr] = i
         sim.step(d)
 
     with open('trace.vcd', 'w') as f:
         sim_trace.print_vcd(f)
 
 
-#weights = [[1, 10, 10, 2], [3, 9, 6, 2], [6, 8, 2, 8], [4, 1, 8, 6]]  # transposed
-#weights = [[4, 1, 8, 6], [6, 8, 2, 8], [3, 9, 6, 2], [1, 10, 10, 2]]  # tranposed, reversed
-#weights = [[1, 3, 6, 4], [10, 9, 8, 1], [10, 6, 2, 8], [2, 2, 8, 6]]
-weights = [[2, 2, 8, 6], [10, 6, 2, 8], [10, 9, 8, 1], [1, 3, 6, 4]]  # reversed
+if __name__ == "__main__":
+    #weights = [[1, 10, 10, 2], [3, 9, 6, 2], [6, 8, 2, 8], [4, 1, 8, 6]]  # transposed
+    #weights = [[4, 1, 8, 6], [6, 8, 2, 8], [3, 9, 6, 2], [1, 10, 10, 2]]  # tranposed, reversed
+    #weights = [[1, 3, 6, 4], [10, 9, 8, 1], [10, 6, 2, 8], [2, 2, 8, 6]]
+    weights = [[2, 2, 8, 6], [10, 6, 2, 8], [10, 9, 8, 1], [1, 3, 6, 4]]  # reversed
 
-vectors = [[12, 7, 2, 6], [21, 21, 18, 8], [1, 4, 18, 11], [6, 3, 25, 15], [21, 12, 1, 15], [1, 6, 13, 8], [24, 25, 18, 1], [2, 5, 13, 6], [19, 3, 1, 17], [25, 10, 20, 10]]
+    vectors = [[12, 7, 2, 6], [21, 21, 18, 8], [1, 4, 18, 11], [6, 3, 25, 15], [21, 12, 1, 15], [1, 6, 13, 8], [24, 25, 18, 1], [2, 5, 13, 6], [19, 3, 1, 17], [25, 10, 20, 10]]
 
-testall(vectors, weights)
+    testall(vectors, weights)
