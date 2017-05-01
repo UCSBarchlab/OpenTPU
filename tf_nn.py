@@ -90,6 +90,9 @@ def main():
 
         costs = []
         epochs = []
+        
+        train_x = norm2byte(train_x).astype(np.float32)
+        train_y = norm2byte(train_y).astype(np.float32)
 
         while True:
             sess.run(train_op, feed_dict={inputs: train_x, outputs: train_y})
