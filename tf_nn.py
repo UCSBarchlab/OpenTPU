@@ -69,8 +69,8 @@ def main():
         #b4 = tf.Variable(tf.random_normal([layers[4]], 0, .1, dtype=tf.float32), name='b4')
         #b_out = tf.Variable(tf.random_normal([layers[5]], 0, .1, dtype=tf.float32), name='b_out')
         # Actication function
-        act = tf.nn.sigmoid
-        #act = tf.nn.relu
+        #act = tf.nn.sigmoid
+        act = tf.nn.relu
 
     with tf.name_scope('TRAIN'):
         learning_rate = .5
@@ -90,6 +90,9 @@ def main():
 
         costs = []
         epochs = []
+        
+        train_x = norm2byte(train_x).astype(np.float32)
+        train_y = norm2byte(train_y).astype(np.float32)
 
         while True:
             sess.run(train_op, feed_dict={inputs: train_x, outputs: train_y})
