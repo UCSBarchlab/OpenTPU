@@ -69,8 +69,8 @@ def main():
         #b4 = tf.Variable(tf.random_normal([layers[4]], 0, .1, dtype=tf.float32), name='b4')
         #b_out = tf.Variable(tf.random_normal([layers[5]], 0, .1, dtype=tf.float32), name='b_out')
         # Actication function
-        act = tf.nn.sigmoid
-        #act = tf.nn.relu
+        #act = tf.nn.sigmoid
+        act = tf.nn.relu
 
     with tf.name_scope('TRAIN'):
         learning_rate = .5
