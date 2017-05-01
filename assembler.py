@@ -53,6 +53,8 @@ TOP_LEVEL_SEP = re.compile(r'[a-zA-Z]+\s+')
 
 SUFFIX = '.out'
 
+ENDIANNESS = 'big'
+
 
 def DEBUG(string):
     if args.debug:
@@ -105,26 +107,30 @@ def assemble(path, n):
 
 
         # binary for flags
-        bin_flags = flag.to_bytes(1, byteorder='little')
+        bin_flags = flag.to_bytes(1, byteorder=ENDIANNESS)
 
         opcode, n_src, n_tar, n_3rd = OPCODE2BIN[opcode]
 
         # binary representation for opcode
-        bin_opcode = opcode.to_bytes(1, byteorder='little')
+        bin_opcode = opcode.to_bytes(1, byteorder=ENDIANNESS)
 
         # binary for oprands
         bin_operands = b''
         if len(operands) == 0:
             bin_operands = b''
         elif len(operands) == 1:
-            bin_operands = operands[0].to_bytes(n_src, byteorder='little')
+            bin_operands = operands[0].to_bytes(n_src, byteorder=ENDIANNESS)
         elif len(operands) == 3:
-            bin_operands += operands[0].to_bytes(n_src, byteorder='little')
-            bin_operands += operands[1].to_bytes(n_tar, byteorder='little')
-            bin_operands += operands[2].to_bytes(n_3rd, byteorder='little')
+            bin_operands += operands[0].to_bytes(n_src, byteorder=ENDIANNESS)
+            bin_operands += operands[1].to_bytes(n_tar, byteorder=ENDIANNESS)
+            bin_operands += operands[2].to_bytes(n_3rd, byteorder=ENDIANNESS)
 
         # binary for instruction
         bin_rep = bin_opcode + bin_operands + bin_flags
+
+        if len(bin_rep) < 14:
+            x = 0
+            bin_rep += x.to_bytes(14 - len(bin_rep), byteorder=ENDIANNESS)
 
         DEBUG(line[:-1])
         DEBUG(bin_rep)
