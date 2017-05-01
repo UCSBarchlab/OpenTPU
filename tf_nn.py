@@ -91,8 +91,8 @@ def main():
         costs = []
         epochs = []
         
-        train_x = norm2byte(train_x).astype(np.float32)
-        train_y = norm2byte(train_y).astype(np.float32)
+        #train_x = norm2byte(train_x).astype(np.float32)
+        #train_y = norm2byte(train_y).astype(np.float32)
 
         while True:
             sess.run(train_op, feed_dict={inputs: train_x, outputs: train_y})
@@ -128,27 +128,27 @@ def main():
 
         # input
         shape = qtz_input.shape
-        pad_input = np.zeros((shape[0], HW_WIDTH), dtype=np.int8)
-        pad_input[:shape[0], :shape[1]] = qtz_input
+        pad_input = np.zeros((shape[0], HW_WIDTH), dtype=np.int8 if not args.raw else np.float32)
+        pad_input[:shape[0], :shape[1]] = qtz_input if not args.raw else test_x
         print 'padded input: {}'.format(pad_input)
         np.save(args.save_input_path, pad_input)
 
         # weights
         shape = qtz_m1.shape
-        pad_m1 = np.zeros((HW_WIDTH, HW_WIDTH), dtype=np.int8)
-        pad_m1[:shape[0], :shape[1]] = qtz_m1
+        pad_m1 = np.zeros((HW_WIDTH, HW_WIDTH), dtype=np.int8 if not args.raw else np.float32)
+        pad_m1[:shape[0], :shape[1]] = qtz_m1 if not args.raw else m1_val
         pad_m1.reshape((1, HW_WIDTH, HW_WIDTH))
         print 'padded m1: {}'.format(pad_m1)
 
         shape = qtz_m2.shape
-        pad_m2 = np.zeros((HW_WIDTH, HW_WIDTH), dtype=np.int8)
-        pad_m2[:shape[0], :shape[1]] = qtz_m2
+        pad_m2 = np.zeros((HW_WIDTH, HW_WIDTH), dtype=np.int8 if not args.raw else np.float32)
+        pad_m2[:shape[0], :shape[1]] = qtz_m2 if not args.raw else m2_val
         pad_m2.reshape((1, HW_WIDTH, HW_WIDTH))
         print 'padded m2: {}'.format(pad_m2)
 
         shape = qtz_m3.shape
-        pad_m3 = np.zeros((HW_WIDTH, HW_WIDTH), dtype=np.int8)
-        pad_m3[:shape[0], :shape[1]] = qtz_m3
+        pad_m3 = np.zeros((HW_WIDTH, HW_WIDTH), dtype=np.int8 if not args.raw else np.float32)
+        pad_m3[:shape[0], :shape[1]] = qtz_m3 if not args.raw else m3_val
         pad_m3.reshape((1, HW_WIDTH, HW_WIDTH))
         print 'padded m3: {}'.format(pad_m3)
         padded_weights = np.array((pad_m1, pad_m2, pad_m3))
@@ -156,12 +156,16 @@ def main():
         np.save(args.save_weight_path, padded_weights)
 
         # Update weights
-        sess.run(m1.assign(qtz_m1))
-        sess.run(m2.assign(qtz_m2))
-        sess.run(m3.assign(qtz_m3))
+        if not args.raw:
+            sess.run(m1.assign(qtz_m1))
+            sess.run(m2.assign(qtz_m2))
+            sess.run(m3.assign(qtz_m3))
 
         # Test with 8b inputs/weights
-        pred_y = (sess.run(y_out, feed_dict={inputs: qtz_input, outputs: qtz_output})).astype(np.int8)
+        test_input = qtz_input if not args.raw else test_x
+        test_output = qtz_output if not args.raw else test_y
+        pred_y = sess.run(y_out, feed_dict={inputs: test_input, outputs: test_output})
+        pred_y = pred_y.astype(np.int8) if not args.raw else pred_y
         np.save(args.save_output_path, pred_y)
         print 'Prediction\nReal\tPredicted'
         for (y, y_hat) in zip(test_y, pred_y):
@@ -189,6 +193,8 @@ def parse_args():
                         help='path to save predicts.')
     parser.add_argument('--N', action='store', type=int,
                         help='number of test cases.')
+    parser.add_argument('--raw', action='store_true', default=False,
+                        help='use float32 raw numbers.')
     args = parser.parse_args()
 
 if __name__ == '__main__':
