@@ -2,10 +2,6 @@ from pyrtl import *
 
 #set_debug_mode()
 
-DATWIDTH = 8
-MATSIZE = 4
-ACCSIZE = 8
-
 def MAC(data_width, matrix_size, data_in, acc_in, switchw, weight_in, weight_we, weight_tag):
     '''Multiply-Accumulate unit with programmable weight.
     Inputs
@@ -47,7 +43,7 @@ def MAC(data_width, matrix_size, data_in, acc_in, switchw, weight_in, weight_we,
 
     # When told, store a new weight value in the secondary buffer
     with conditional_assignment:
-        with weight_we & (weight_tag == Const(MATSIZE-1)):
+        with weight_we & (weight_tag == Const(matrix_size-1)):
             with current_buffer == 0:  # If 0, wbuf1 is current; if 1, wbuf2 is current
                 wbuf2.next |= weight_in
             with otherwise:
@@ -112,13 +108,13 @@ def MMArray(data_width, matrix_size, data_in, new_weights, weights_in, weights_w
     # Handle weight reprogramming
     programming = probe(Register(1))  # when 1, we're in the process of loading new weights
     size = 1
-    while pow(2, size) < MATSIZE:
+    while pow(2, size) < matrix_size:
         size = size + 1
     progstep = probe(Register(size))  # 256 steps to program new weights (also serves as tag input)
     with conditional_assignment:
         with weights_we & (~programming):
             programming.next |= 1
-        with programming & (progstep == MATSIZE-1):
+        with programming & (progstep == matrix_size-1):
             programming.next |= 0
         with otherwise:
             pass
@@ -268,7 +264,7 @@ def FIFO(matsize, mem_data, mem_valid, next_tile):
 
     return buf4, ready, full
 
-def systolic_setup(matsize, vec_in, waddr, valid, clearbit, lastvec, switch):
+def systolic_setup(data_width, matsize, vec_in, waddr, valid, clearbit, lastvec, switch):
     '''Buffers vectors from the unified SRAM buffer so that they can be fed along diagonals to the
     Matrix Multiply array.
 
@@ -302,9 +298,9 @@ def systolic_setup(matsize, vec_in, waddr, valid, clearbit, lastvec, switch):
     clearreg.next <<= clearbit
     donereg = Register(1)
     donereg.next <<= lastvec
-    topreg = Register(DATWIDTH)
+    topreg = Register(data_width)
 
-    firstcolumn = [topreg,] + [ Register(DATWIDTH) for i in range(matsize-1) ]
+    firstcolumn = [topreg,] + [ Register(data_width) for i in range(matsize-1) ]
     lastcolumn = [ None for i in range(matsize) ]
     lastcolumn[0] = topreg
 
@@ -342,13 +338,13 @@ def systolic_setup(matsize, vec_in, waddr, valid, clearbit, lastvec, switch):
         left = firstcolumn[row]
         lastcolumn[row] = left
         for column in range(0, row):  # first column is done
-            buf = Register(DATWIDTH)
+            buf = Register(data_width)
             buf.next <<= left
             left = buf
             lastcolumn[row] = left  # holds final column for output
 
     # Connect first column to input data
-    datain = [ vec_in[i*DATWIDTH : i*DATWIDTH+DATWIDTH] for i in range(matsize) ]
+    datain = [ vec_in[i*data_width : i*data_width+data_width] for i in range(matsize) ]
     for din, reg in zip(datain, firstcolumn):
         reg.next <<= din
     
@@ -390,7 +386,7 @@ def MMU(data_width, matrix_size, accum_size, vector_in, accum_raddr, accum_waddr
         with otherwise:
             tile_ready.next |= 0
     
-    matin, switchout, addrout, weout, clearout, doneout = systolic_setup(matsize=matrix_size, vec_in=vector_in, waddr=accum_waddr, valid=vec_valid, clearbit=accum_overwrite, lastvec=lastvec, switch=switch_weights)
+    matin, switchout, addrout, weout, clearout, doneout = systolic_setup(data_width=data_width, matsize=matrix_size, vec_in=vector_in, waddr=accum_waddr, valid=vec_valid, clearbit=accum_overwrite, lastvec=lastvec, switch=switch_weights)
 
     mouts = MMArray(data_width=data_width, matrix_size=matrix_size, data_in=matin, new_weights=switchout, weights_in=weights_tile, weights_we=weights_we)
 
@@ -435,7 +431,7 @@ def MMU_top(data_width, matrix_size, accum_size, ub_size, init, start_addr, nvec
     swap_reg = Register(1)
 
     busy = Register(1)
-    N = Register(8)  # 256 is max vector length
+    N = Register(len(nvecs))
     ub_raddr = Register(ub_size)
 
     rtl_assert(~(init & busy), Exception("Cannot dispatch new MM instruction while previous instruction is still being issued."))
@@ -482,6 +478,10 @@ Control signals propagating down systolic_setup to accumulators:
 '''
 
 def testall(input_vectors, weights_vectors):
+    DATWIDTH = 8
+    MATSIZE = 4
+    ACCSIZE = 8
+
     L = len(input_vectors)
     
     ins = [probe(Input(DATWIDTH)) for i in range(MATSIZE)]
