@@ -369,8 +369,8 @@ def MMU(data_width, matrix_size, accum_size, vector_in, accum_raddr, accum_waddr
     logn = 1
     while pow(2, logn) < (matrix_size):
         logn = logn << 1
-    weights_wait = Register(logn1)  # counts cycles since last weight push
-    weights_count = Register(logn)  # counts cycles of current weight push
+    weights_wait = Register(logn1, "weights_wait")  # counts cycles since last weight push
+    weights_count = Register(logn, "weights_count")  # counts cycles of current weight push
     startup = Register(1)
     startup.next <<= 1  # 0 only in first cycle
     weights_we = WireVector(1)
@@ -387,6 +387,8 @@ def MMU(data_width, matrix_size, accum_size, vector_in, accum_raddr, accum_waddr
         with weights_we:
             weights_tile.next |= weights_in
             tile_ready.next |= 1
+        with otherwise:
+            tile_ready.next |= 0
     
     matin, switchout, addrout, weout, clearout, doneout = systolic_setup(matsize=matrix_size, vec_in=vector_in, waddr=accum_waddr, valid=vec_valid, clearbit=accum_overwrite, lastvec=lastvec, switch=switch_weights)
 
@@ -419,9 +421,59 @@ def MMU(data_width, matrix_size, accum_size, vector_in, accum_raddr, accum_waddr
 
     return accout, done
 
+def MMU_top(data_width, matrix_size, accum_size, ub_size, init, start_addr, nvecs, dest_acc_addr, overwrite, swap_weights, ub_rdata, accum_raddr, weights_in, weights_we):
+    '''
+
+    Outputs
+    ub_raddr: read address for unified buffer
+    '''
+
+    accum_waddr = Register(accum_size)
+    valid = WireVector(1)
+    overwrite_reg = Register(1)
+    last = WireVector(1)
+    swap_reg = Register(1)
+
+    busy = Register(1)
+    N = Register(8)  # 256 is max vector length
+    ub_raddr = Register(ub_size)
+
+    rtl_assert(~(init & busy), Exception("Cannot dispatch new MM instruction while previous instruction is still being issued."))
+
+    # Vector issue control logic
+    with conditional_assignment:
+        with init:  # new instruction being issued
+            accum_waddr.next |= dest_acc_addr
+            overwrite_reg.next |= overwrite
+            swap_reg.next |= swap_weights
+            busy.next |= 1
+            N.next |= nvecs
+            ub_raddr.next |= start_addr  # begin issuing next cycle
+        with busy:  # We're issuing a vector this cycle
+            vec_valid |= 1
+            N.next |= N - 1
+            with N == 1:  # this was the last vector
+                last |= 1
+                busy.next |= 0
+            with otherwise:  # we're going to issue a vector next cycle as well
+                ub.raddr.next |= ub_raddr + 1
+                accum_waddr.next |= accum_waddr + 1
+                last |= 0
+        
+    acc_out, done = MMU(data_width=data_width, matrix_size=matrix_size, accum_size=accum_size, vector_in=ub_rdata, accum_raddr=accum_raddr, accum_waddr=accum_waddr, vec_valid=valid, accum_overwrite=overwrite+reg, lastvec=last, switch_weights=swap_reg, ddr_data=Const(0), ddr_valid=Const(0), weights_in=weights_in, weights_we=weights_we)
+
+
+    return ub_raddr, acc_out, done
+
+    
+
 '''
 Do we need full/stall signal from Matrix? Would need to stop SRAM out from writing to systolic setup
 Yes: MMU needs to track when both buffers used and emit such a signal
+
+The timing systems for weights programming are wonky right now. Both rtl_asserts are failing, but the
+right answer comes out if you ignore that. It looks like the state machine that counts time since the
+last weights programming keeps restarting, so the MMU thinks it's always programming weights?
 
 Control signals propagating down systolic_setup to accumulators:
 -Overwrite signal (default: accumulate)
@@ -440,7 +492,7 @@ def testall(input_vectors, weights_vectors):
     valid = Input(1)
     raddr = Input(8, "raddr")  # accumulator read address to read out answers
     donesig = Output(1, "done")
-    weights_we = Input(1)
+    weights_we = Input(1, "weights_we")
 
     outs = [Output(32, name="out{}".format(str(i))) for i in range(MATSIZE)]
 
@@ -477,6 +529,9 @@ def testall(input_vectors, weights_vectors):
     # make a default input dictionary
     din = { swap:0, waddr:0, lastvec:0, valid:0, raddr:0, weights_we:0 }
     din.update({ins[j]:0 for j in range(MATSIZE)})
+
+    # Give a few cycles for startup
+    sim.step(din)
     
     # Send signal to write weights
     d = din.copy()
@@ -484,7 +539,7 @@ def testall(input_vectors, weights_vectors):
     sim.step(d)
 
     # Wait MATSIZE cycles for weights to propagate
-    for i in range(MATSIZE+2):
+    for i in range(MATSIZE*2):
         sim.step(din)
 
     # Send the swap signal with first row of input
