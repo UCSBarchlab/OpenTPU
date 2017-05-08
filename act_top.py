@@ -32,13 +32,12 @@ def act_top(rd_addr, N, wr_addr):
 	din_addr = pyrtl.Register(2, name='din_addr')
 	dout_addr = pyrtl.Register(2, name='dout_addr')
 	dout = pyrtl.Register(4*8, name='dout')
-	din = [] 
+        din = []
+        din_addr.next |= rd_addr + cntr
 	with pyrtl.conditional_assignment:
 		with cntr < N-1:
 			cntr.next |= cntr + 1
-			din_addr.next |= rd_addr + cntr
 		with pyrtl.otherwise:
-			din_addr.next |= rd_addr + cntr
 			cntr.next |= 0
 	for i in range(4):
 		din.append(mem_acum[din_addr][i*32:(i+1)*32-1])

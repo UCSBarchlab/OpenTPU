@@ -459,7 +459,7 @@ def MMU_top(data_width, matrix_size, accum_size, ub_size, init, start_addr, nvec
     acc_out, done = MMU(data_width=data_width, matrix_size=matrix_size, accum_size=accum_size, vector_in=ub_rdata, accum_raddr=accum_raddr, accum_waddr=accum_waddr, vec_valid=valid, accum_overwrite=overwrite+reg, lastvec=last, switch_weights=swap_reg, ddr_data=Const(0), ddr_valid=Const(0), weights_in=weights_in, weights_we=weights_we)
 
 
-    return ub_raddr, acc_out, done
+    return ub_raddr, acc_out, busy, done
 
     
 

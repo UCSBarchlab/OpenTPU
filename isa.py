@@ -18,6 +18,8 @@ SRC/TAR takes 5B for memory operations to support at least 8GB addressing,
 
 """
 
+INSTRUCTION_WIDTH = 
+
 HOST_ADDR_SIZE = 8 # 64-bit addressing
 DRAM_ADDR_SIZE = 5 # 33-bit addressing (TPU has 8 GB on-chip DRAM)
 UB_ADDR_SIZE = 3 # 17-bit addressing for Unified Buffer
