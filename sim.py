@@ -6,18 +6,20 @@ from math import exp
 import isa
 
 # width of the tile
-WIDTH = 8
+WIDTH = 16
 
 
 class TPUSim(object):
     def __init__(self, program_filename, dram_filename, hostmem_filename):
         self.program = open(program_filename, 'rb')
         self.weight_memory = np.load(dram_filename)
-        assert self.weight_memory.dtype == np.int8, 'DRAM weight mem is not 8-bit ints'
+        # assert self.weight_memory.dtype == np.int8, 'DRAM weight mem is not 8-bit ints'
         self.host_memory = np.load(hostmem_filename)
-        assert self.host_memory.dtype == np.int8, 'Hostmem not 8-bit ints'
-        self.unified_buffer = np.zeros((96000, WIDTH), dtype=np.int8)
-        self.accumulator = np.zeros((4000, WIDTH), dtype=np.int32)
+        # assert self.host_memory.dtype == np.int8, 'Hostmem not 8-bit ints'
+        self.unified_buffer = np.zeros((96000, WIDTH))
+        self.accumulator = np.zeros((4000, WIDTH))
+        # self.unified_buffer = np.zeros((96000, WIDTH), dtype=np.int8)
+        # self.accumulator = np.zeros((4000, WIDTH), dtype=np.int32)
         self.weight_fifo = []
 
     def run(self):
@@ -67,10 +69,10 @@ class TPUSim(object):
         result = self.accumulator[src:src+length]
         if flag & isa.FUNC_RELU_MASK:
             print('  RELU!!!!')
-            vfunc = np.vectorize(lambda x: 0 if x < 0 else 255)
+            vfunc = np.vectorize(lambda x: 0. if x < 0. else x)
         elif flag & isa.FUNC_SIGMOID_MASK:
             print('  SIGMOID')
-            vfunc = np.vectorize(lambda x: int(255/(1+exp(-x))))
+            vfunc = np.vectorize(lambda x: int(255./(1.+exp(-x))))
         else:
             raise Exception('(╯°□°）╯︵ ┻━┻ bad activation function!')
 
