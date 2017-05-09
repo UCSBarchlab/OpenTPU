@@ -1,9 +1,10 @@
 from pyrtl import *
+import config
 import isa
 
-DATASIZE = 8
-MATSIZE = 16
-ACCSIZE = 8
+DATASIZE = config.DWIDTH
+MATSIZE = config.MATSIZE
+ACCSIZE = config.ACC_ADDR_SIZE
 
 def decode(instruction):
     """
@@ -17,16 +18,16 @@ def decode(instruction):
     weights_we = WireVector(1)
 
     ub_addr = WireVector(24)  # goes to FSM
-    ub_raddr = WireVector(isa.UB_ADDR_SIZE * 8)  # goes to UB read addr port
-    ub_waddr = WireVector(isa.UB_ADDR_SIZE * 8)
+    ub_raddr = WireVector(config.UB_ADDR_SIZE)  # goes to UB read addr port
+    ub_waddr = WireVector(config.UB_ADDR_SIZE)
 
     whm_length = WireVector(8)
     rhm_length = WireVector(8)
     mmc_length = WireVector(16)
     act_length = WireVector(8)
 
-    rhm_addr = WireVector(isa.HOST_ADDR_SIZE * 8)
-    whm_addr = WireVector(isa.HOST_ADDR_SIZE * 8)
+    rhm_addr = WireVector(config.HOST_ADDR_SIZE)
+    whm_addr = WireVector(config.HOST_ADDR_SIZE)
 
     dispatch_mm = WireVector(1)
     dispatch_act = WireVector(1)
