@@ -22,7 +22,9 @@ pc.incr = WireVector(1)
 with conditional_assignment:
     with pc.incr:
         pc.next |= pc + 1
+pc.incr <<= 1  # right now, increment the PC every cycle
 
+        
 ############################################################
 #  Unified Buffer
 ############################################################

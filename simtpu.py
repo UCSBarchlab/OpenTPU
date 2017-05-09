@@ -1,8 +1,12 @@
 from pyrtl import *
+
+#set_debug_mode()
+
 from tpu import *
 from config import INSTRUCTION_WIDTH
 
 import sys
+
 
 
 with open(sys.argv[1], 'rb') as f:
@@ -19,7 +23,7 @@ for i in range(len(ins)/width):  # once per instruction
 
 print map(hex, instrs)
 
-sim_trace = SimulationTrace({IMem : { a : v for a,v in enumerate(instrs)} })
-sim = FastSimulation(tracer=sim_trace)
+sim_trace = SimulationTrace()
+sim = FastSimulation(tracer=sim_trace, memory_value_map={ IMem : { a : v for a,v in enumerate(instrs)} })
 
 
