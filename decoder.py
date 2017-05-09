@@ -25,6 +25,9 @@ def decode(instruction):
     mmc_length = WireVector(16)
     act_length = WireVector(8)
 
+    rhm_addr = WireVector(isa.HOST_ADDR_SIZE * 8)
+    whm_addr = WireVector(isa.HOST_ADDR_SIZE * 8)
+
     dispatch_mm = WireVector(1)
     dispatch_act = WireVector(1)
 
@@ -34,7 +37,10 @@ def decode(instruction):
         with op == isa.OPCODE2BIN['NOP'][0]:
             pass
         with op == isa.OPCODE2BIN['WHM'][0]:
-            ub_raddr |= instruction[8:8+(isa.UB_ADDR_SIZE * 8)]
+            whm_addr_start = 8+(isa.UB_ADDR_SIZE * 8)
+            whm_addr_end = whm_addr_start + isa.HOST_ADDR_SIZE * 8
+            ub_raddr |= instruction[8:whm_addr_start]
+            whm_addr |= instruction[whm_addr_start:whm_addr_end]
             whm_length |= instruction[-16:-8]
         with op == isa.OPCODE2BIN['RW'][0]:
             weights_we |= 1
@@ -62,8 +68,10 @@ def decode(instruction):
         with op == isa.OPCODE2BIN['SYNC'][0]:
             pass
         with op == isa.OPCODE2BIN['RHM'][0]:
+            rhm_addr_start = 8
             ub_addr_start = 8 + isa.HOST_ADDR_SIZE * 8
             ub_addr_end = ub_addr_start + isa.UB_ADDR_SIZE * 8
+            rhm_addr |= instruction[rhm_addr_start:ub_addr_start]
             ub_raddr |= instruction[ub_addr_start:ub_addr_end]
             rhm_length |= instruction[-16:-8]
         with op == isa.OPCODE2BIN['HLT'][0]:
