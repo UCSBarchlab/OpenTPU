@@ -27,13 +27,16 @@ def decode(instruction):
 
     dispatch_mm = WireVector(1)
     dispatch_act = WireVector(1)
-
+    dispatch_rhm = WireVector(1)
+    dispatch_whm = WireVector(1)
+    
     op = instruction[:8]
 
     with conditional_assignment:
         with op == isa.OPCODE2BIN['NOP'][0]:
             pass
         with op == isa.OPCODE2BIN['WHM'][0]:
+            dispatch_whm |= 1
             ub_raddr |= instruction[8:8+(isa.UB_ADDR_SIZE * 8)]
             whm_length |= instruction[-16:-8]
         with op == isa.OPCODE2BIN['RW'][0]:
@@ -62,6 +65,7 @@ def decode(instruction):
         with op == isa.OPCODE2BIN['SYNC'][0]:
             pass
         with op == isa.OPCODE2BIN['RHM'][0]:
+            dispatch_rhm |= 1
             ub_addr_start = 8 + isa.HOST_ADDR_SIZE * 8
             ub_addr_end = ub_addr_start + isa.UB_ADDR_SIZE * 8
             ub_raddr |= instruction[ub_addr_start:ub_addr_end]
@@ -72,5 +76,5 @@ def decode(instruction):
         with otherwise:
             print("otherwise")
 
-    return dispatch_mm, dispatch_act, ub_addr, ub_raddr, ub_waddr, rhm_length, whm_length, mmc_length, act_length, accum_raddr, accum_waddr, accum_overwrite, switch_weights, weights_we
+    return dispatch_mm, dispatch_act, dispatch_rhm, dispatch_whm, ub_addr, ub_raddr, ub_waddr, rhm_length, whm_length, mmc_length, act_length, accum_raddr, accum_waddr, accum_overwrite, switch_weights, weights_we
 

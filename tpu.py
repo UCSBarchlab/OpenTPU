@@ -1,7 +1,6 @@
 from pyrtl import *
 
 import isa
-from isa import INSTRUCTION_WIDTH
 from decoder import decode
 from matrix import MMU_top
 from act_top import act_top2
@@ -29,7 +28,7 @@ weights_in = Input(MATSIZE*DWIDTH, "weights_in")
 #  Instruction Memory and PC
 ############################################################
 
-IMem = MemBlock(bitwidth=INSTRUCTION_WIDTH, addrwidth=IMEM_SIZE)
+IMem = MemBlock(bitwidth=isa.INSTRUCTION_WIDTH, addrwidth=IMEM_SIZE)
 pc = Register(IMEM_SIZE)
 pc.incr = WireVector(1)
 with conditional_assignment:
@@ -50,7 +49,7 @@ UB2MM = UBuffer[ub_mm_raddr]
 #  Decoder
 ############################################################
 
-dispatch_mm, dispatch_act, ub_start_addr, ub_dec_raddr, ub_dest_addr, rhm_length, whm_length, mmc_length, act_length, accum_raddr, accum_waddr, accum_overwrite, switch_weights, weights_we = decode(IMem[pc])
+dispatch_mm, dispatch_act, dispatch_rhm, dispatch_whm, ub_start_addr, ub_dec_addr, ub_dest_addr, rhm_length, whm_length, mmc_length, act_length, accum_raddr, accum_waddr, accum_overwrite, switch_weights, weights_we = decode(IMem[pc])
 
 ############################################################
 #  Matrix Multiply Unit
@@ -71,3 +70,54 @@ accum_act_raddr <<= accum_raddr_sig
 with conditional_assignment:
     with ub_act_we:
         UBuffer[ub_act_waddr] |= act_out
+
+############################################################
+#  Read/Write Host Memory
+############################################################
+
+hostmem_raddr = Output(isa.HOST_ADDR_SIZE*8)
+hostmem_rdata = Input(DWIDTH*MATSIZE)
+hostmem_re = Output(1)
+#hostmem_waddr = Output(isa.HOST_ADDR_SIZE*8)
+hostmem_wdata = Output(DWIDTH*MATSIZE)
+hostmem_we = Output(1)
+
+# Write Host Memory control logic
+ubuffer_out = UBuffer[whm_ub_raddr]
+whm_N = Register(len(whm_length))
+whm_ub_raddr = Register(ub_dec_addr)
+whm_busy = Register(1)
+hostmem_we <<= whm_busy
+hostmem_wdata <<= ubuffer_out
+
+with conditional_assignment:
+    with dispatch_whm:
+        whm_N.next |= whm_length
+        whm_ub_raddr.next |= ub_dec_addr
+        whm_busy.next |= 1
+    with whm_busy:
+        whm_N.next |= whm_N - 1
+        whm_ub_raddr.next |= whm_ub_raddr + 1
+        with whm_N == 1:
+            whm_busy.next |= 0
+
+
+# Read Host Memory control logic
+rhm_N = Register(len(rhm_length))
+rhm_addr = Register(len())
+rhm_busy = Register(1)
+with conditional_assignment:
+    with dispatch_rhm:
+        rhm_N.next |= rhm_length
+        rhm_busy.next |= 1
+        hostmem_raddr |=
+        hostmem_re |= 1
+        rhm_addr.next |=  + 1
+    with rhm_busy:
+        rhm_N.next |= rhm_N - 1
+        hostmem_raddr |= rhm_addr
+        hostmem_re |= 1
+        rhm_addr.next |= rhm_addr + 1
+        UBuffer[ub_dec_addr] |= hostmem_rdata
+        with rhm_N == 1:
+            rhm_busy.next |= 0
