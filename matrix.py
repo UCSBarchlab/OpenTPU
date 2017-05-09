@@ -417,7 +417,7 @@ def MMU(data_width, matrix_size, accum_size, vector_in, accum_raddr, accum_waddr
 
     return accout, done
 
-def MMU_top(data_width, matrix_size, accum_size, ub_size, init, start_addr, nvecs, dest_acc_addr, overwrite, swap_weights, ub_rdata, accum_raddr, weights_in, weights_we):
+def MMU_top(data_width, matrix_size, accum_size, ub_size, start, start_addr, nvecs, dest_acc_addr, overwrite, swap_weights, ub_rdata, accum_raddr, weights_in, weights_we):
     '''
 
     Outputs
@@ -425,7 +425,7 @@ def MMU_top(data_width, matrix_size, accum_size, ub_size, init, start_addr, nvec
     '''
 
     accum_waddr = Register(accum_size)
-    valid = WireVector(1)
+    vec_valid = WireVector(1)
     overwrite_reg = Register(1)
     last = WireVector(1)
     swap_reg = Register(1)
@@ -434,11 +434,11 @@ def MMU_top(data_width, matrix_size, accum_size, ub_size, init, start_addr, nvec
     N = Register(len(nvecs))
     ub_raddr = Register(ub_size)
 
-    rtl_assert(~(init & busy), Exception("Cannot dispatch new MM instruction while previous instruction is still being issued."))
+    rtl_assert(~(start & busy), Exception("Cannot dispatch new MM instruction while previous instruction is still being issued."))
 
     # Vector issue control logic
     with conditional_assignment:
-        with init:  # new instruction being issued
+        with start:  # new instruction being issued
             accum_waddr.next |= dest_acc_addr
             overwrite_reg.next |= overwrite
             swap_reg.next |= swap_weights
@@ -452,11 +452,11 @@ def MMU_top(data_width, matrix_size, accum_size, ub_size, init, start_addr, nvec
                 last |= 1
                 busy.next |= 0
             with otherwise:  # we're going to issue a vector next cycle as well
-                ub.raddr.next |= ub_raddr + 1
+                ub_raddr.next |= ub_raddr + 1
                 accum_waddr.next |= accum_waddr + 1
                 last |= 0
         
-    acc_out, done = MMU(data_width=data_width, matrix_size=matrix_size, accum_size=accum_size, vector_in=ub_rdata, accum_raddr=accum_raddr, accum_waddr=accum_waddr, vec_valid=valid, accum_overwrite=overwrite+reg, lastvec=last, switch_weights=swap_reg, ddr_data=Const(0), ddr_valid=Const(0), weights_in=weights_in, weights_we=weights_we)
+    acc_out, done = MMU(data_width=data_width, matrix_size=matrix_size, accum_size=accum_size, vector_in=ub_rdata, accum_raddr=accum_raddr, accum_waddr=accum_waddr, vec_valid=vec_valid, accum_overwrite=overwrite_reg, lastvec=last, switch_weights=swap_reg, ddr_data=Const(0), ddr_valid=Const(0), weights_in=weights_in, weights_we=weights_we)
 
 
     return ub_raddr, acc_out, busy, done

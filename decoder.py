@@ -25,6 +25,9 @@ def decode(instruction):
     mmc_length = WireVector(16)
     act_length = WireVector(8)
 
+    dispatch_mm = WireVector(1)
+    dispatch_act = WireVector(1)
+
     op = instruction[:8]
 
     with conditional_assignment:
@@ -36,6 +39,7 @@ def decode(instruction):
         with op == isa.OPCODE2BIN['RW'][0]:
             weights_we |= 1
         with op == isa.OPCODE2BIN['MMC'][0]:
+            dispatch_mm |= 1
             ub_addr |= instruction[8:8+(isa.UB_ADDR_SIZE * 8)]
             accum_waddr_start = 8 + isa.UB_ADDR_SIZE
             accum_waddr_end = 8+(isa.UB_ADDR_SIZE * 8) + (isa.ACC_ADDR_SIZE * 8)
@@ -46,6 +50,7 @@ def decode(instruction):
             switch_weights |= flags & isa.SWITCH_MASK
             # TODO: MMC may deal with convolution, set/clear that flag
         with op == isa.OPCODE2BIN['ACT'][0]:
+            dispatch_act |= 1
             opcode_end = 8
             acc_addr_end = opcode_end + isa.ACC_ADDR_SIZE * 8
             ub_addr_end = acc_addr_end + isa.UB_ADDR_SIZE * 8
@@ -67,5 +72,5 @@ def decode(instruction):
         with otherwise:
             print("otherwise")
 
-    return ub_addr, ub_raddr, ub_waddr, rhm_length, whm_length, mmc_length, act_length, accum_waddr, accum_overwrite, switch_weights, weights_we
+    return dispatch_mm, dispatch_act, ub_addr, ub_raddr, ub_waddr, rhm_length, whm_length, mmc_length, act_length, accum_raddr, accum_waddr, accum_overwrite, switch_weights, weights_we
 
