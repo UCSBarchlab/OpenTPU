@@ -175,6 +175,7 @@ def main():
         pred_out = np.array((pred_y.tolist(), y1.tolist(),
             y1_act.tolist(), y2.tolist(), y2_act.tolist()))
         np.save(args.save_output_path, pred_out)
+        np.save('gt32', pred_y)
         print 'Prediction\nReal\tPredicted'
         for (y, y_hat) in zip(test_y, pred_y):
             print '{}\t{}'.format(y, y_hat)
@@ -193,11 +194,11 @@ def parse_args():
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--save-weight-path', action='store',
+    parser.add_argument('--save-weight-path', action='store', default='app_weight',
                         help='path to save weights.')
-    parser.add_argument('--save-input-path', action='store',
+    parser.add_argument('--save-input-path', action='store', default='app_in',
                         help='path to save inputs.')
-    parser.add_argument('--save-output-path', action='store',
+    parser.add_argument('--save-output-path', action='store', default='app_out',
                         help='path to save predicts.')
     parser.add_argument('--N', action='store', type=int,
                         help='number of test cases.')

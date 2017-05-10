@@ -1,13 +1,14 @@
 '''
 Hardware configuration.
 '''
-host_addr_size = 8
-ub_addr_size = 3
-weight_dram_addr_size = 5
-acc_addr_size = 2
-mat_mul_size = 8
-data_width = 1
-instruction_width = 14 * 8
+HOST_ADDR_SIZE = 64
+UB_ADDR_SIZE = 16
+WEIGHT_DRAM_ADDR_SIZE = 40
+ACC_ADDR_SIZE = 16
+MATSIZE = 4
+DWIDTH = 8
+INSTRUCTION_WIDTH = 14 * 8
+IMEM_ADDR_SIZE = 12
 
 # values = [host_addr_size, ub_addr_size, weight_dram_addr_size, acc_addr_size, mat_mul_size, data_width]
 #
