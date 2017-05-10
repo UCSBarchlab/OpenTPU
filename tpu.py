@@ -3,7 +3,7 @@ from pyrtl import *
 from config import *
 from decoder import decode
 from matrix import MMU_top
-from act_top import act_top2
+from activate import act_top
 
 ############################################################
 #  Control Signals
@@ -18,12 +18,14 @@ weights_in = Input(MATSIZE*DWIDTH, "weights_in")
 
 IMem = MemBlock(bitwidth=INSTRUCTION_WIDTH, addrwidth=IMEM_ADDR_SIZE)
 pc = Register(IMEM_ADDR_SIZE)
+probe(pc, 'pc')
 pc.incr = WireVector(1)
 with conditional_assignment:
     with pc.incr:
         pc.next |= pc + 1
 pc.incr <<= 1  # right now, increment the PC every cycle
-
+instr = IMem[pc]
+probe(instr, "instr")
         
 ############################################################
 #  Unified Buffer
@@ -39,7 +41,7 @@ UB2MM = UBuffer[ub_mm_raddr]
 #  Decoder
 ############################################################
 
-dispatch_mm, dispatch_act, dispatch_rhm, dispatch_whm, ub_start_addr, ub_dec_addr, ub_dest_addr, rhm_dec_addr, whm_dec_addr, rhm_length, whm_length, mmc_length, act_length, accum_raddr, accum_waddr, accum_overwrite, switch_weights, weights_we = decode(IMem[pc])
+dispatch_mm, dispatch_act, dispatch_rhm, dispatch_whm, ub_start_addr, ub_dec_addr, ub_dest_addr, rhm_dec_addr, whm_dec_addr, rhm_length, whm_length, mmc_length, act_length, accum_raddr, accum_waddr, accum_overwrite, switch_weights, weights_we = decode(instr)
 
 ############################################################
 #  Matrix Multiply Unit
@@ -53,7 +55,7 @@ ub_mm_raddr <<= ub_mm_raddr_sig
 #  Activate Unit
 ############################################################
 
-accum_raddr_sig, ub_act_waddr, act_out, ub_act_we, act_busy = act_top2(start=dispatch_act, start_addr=accum_raddr, dest_addr=ub_dest_addr, nvecs=act_length, accum_out=acc_out)
+accum_raddr_sig, ub_act_waddr, act_out, ub_act_we, act_busy = act_top(start=dispatch_act, start_addr=accum_raddr, dest_addr=ub_dest_addr, nvecs=act_length, accum_out=acc_out)
 accum_act_raddr <<= accum_raddr_sig
 
 # Write the result of activate to the unified buffer
@@ -65,7 +67,7 @@ with conditional_assignment:
 #  Read/Write Host Memory
 ############################################################
 
-hostmem_raddr = Output(HOST_ADDR_SIZE)
+hostmem_raddr = Output(HOST_ADDR_SIZE, "raddr")
 hostmem_rdata = Input(DWIDTH*MATSIZE)
 hostmem_re = Output(1)
 hostmem_waddr = Output(HOST_ADDR_SIZE)
@@ -117,3 +119,8 @@ with conditional_assignment:
         UBuffer[ub_dec_addr] |= hostmem_rdata
         with rhm_N == 1:
             rhm_busy.next |= 0
+
+probe(dispatch_mm, "dispatch_mm")
+probe(dispatch_act, "dispatch_act")
+probe(dispatch_rhm, "dispatch_rhm")
+probe(dispatch_whm, "dispatch_whm")

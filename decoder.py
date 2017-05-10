@@ -35,6 +35,9 @@ def decode(instruction):
     dispatch_whm = WireVector(1)
     
     op = instruction[:8]
+    probe(op, 'op')
+
+    probe(instruction[-8:], "flags")
 
     with conditional_assignment:
         with op == isa.OPCODE2BIN['NOP'][0]:
