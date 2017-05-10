@@ -26,13 +26,13 @@ UB_ADDR_SIZE = 3 # 17-bit addressing for Unified Buffer
 ACC_ADDR_SIZE = 2 # 12-bit addressing for accumulator
 
 OPCODE2BIN = {
-        'RHM':  (0x0, HOST_ADDR_SIZE, UB_ADDR_SIZE,   1),
+        'NOP':  (0x0, 0, 0, 0),
         'WHM':  (0x1, UB_ADDR_SIZE,   HOST_ADDR_SIZE, 1),
         'RW':   (0x2, DRAM_ADDR_SIZE, 0,              0),
         'MMC':  (0x3, UB_ADDR_SIZE,   ACC_ADDR_SIZE,  2),
         'ACT':  (0x4, ACC_ADDR_SIZE,  UB_ADDR_SIZE,   1),
         'SYNC': (0x5, 0, 0, 0),
-        'NOP':  (0x6, 0, 0, 0),
+        'RHM':  (0x6, HOST_ADDR_SIZE, UB_ADDR_SIZE,   1),
         'HLT':  (0x7, 0, 0, 0),
         }
 
