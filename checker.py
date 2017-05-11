@@ -45,6 +45,7 @@ def check(p1, p2, width=None):
             r2 = r2[:, :r_width]
             equal(r1, r2)
 
+
 def parse_args():
     global args
 

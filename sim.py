@@ -11,6 +11,7 @@ WIDTH = 16
 
 class TPUSim(object):
     def __init__(self, program_filename, dram_filename, hostmem_filename):
+        # TODO: switch b/w 32-bit float vs int
         self.program = open(program_filename, 'rb')
         self.weight_memory = np.load(dram_filename)
         # assert self.weight_memory.dtype == np.int8, 'DRAM weight mem is not 8-bit ints'
@@ -45,6 +46,7 @@ class TPUSim(object):
 
         # all done, exit
         np.save('unified_buffer.npy', self.unified_buffer)
+        # TODO: cast outputs into 8bit ints if needed
         self.program.close()
 
         print("""ALL DONE!
@@ -77,6 +79,8 @@ class TPUSim(object):
             raise Exception('(╯°□°）╯︵ ┻━┻ bad activation function!')
 
         result = vfunc(result)
+
+        # TODO: downsample/normalize if needed
 
         self.unified_buffer[dest:dest+length] = result
 
