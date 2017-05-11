@@ -53,8 +53,8 @@ TOP_LEVEL_SEP = re.compile(r'[a-zA-Z]+\s+')
 
 SUFFIX = '.out'
 
-ENDIANNESS = 'big'
-#ENDIANNESS = 'little'
+#ENDIANNESS = 'big'
+ENDIANNESS = 'little'
 
 
 def DEBUG(string):
