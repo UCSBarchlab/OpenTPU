@@ -34,11 +34,11 @@ def decode(instruction):
     dispatch_rhm = WireVector(1)
     dispatch_whm = WireVector(1)
     dispatch_halt = WireVector(1)
-    
-    op = instruction[:8]
+
+    op = instruction[-8:]
     probe(op, 'op')
 
-    probe(instruction[-8:], "flags")
+    probe(instruction[:8], "flags")
 
     with conditional_assignment:
         with op == isa.OPCODE2BIN['NOP'][0]:
@@ -55,32 +55,29 @@ def decode(instruction):
         with op == isa.OPCODE2BIN['MMC'][0]:
             dispatch_mm |= 1
             ub_addr |= instruction[8:8+(isa.UB_ADDR_SIZE * 8)]
-            accum_waddr_start = 8 + isa.UB_ADDR_SIZE
+            accum_waddr_start = 8 + isa.UB_ADDR_SIZE*8
             accum_waddr_end = 8+(isa.UB_ADDR_SIZE * 8) + (isa.ACC_ADDR_SIZE * 8)
             accum_waddr |= instruction[accum_waddr_start:accum_waddr_end]
             mmc_length |= instruction[accum_waddr_end:accum_waddr_end + 8]
-            flags = instruction[-8:]
+            flags = instruction[:8]
             accum_overwrite |= flags & isa.OVERWRITE_MASK
             switch_weights |= flags & isa.SWITCH_MASK
             # TODO: MMC may deal with convolution, set/clear that flag
         with op == isa.OPCODE2BIN['ACT'][0]:
             dispatch_act |= 1
-            opcode_end = 8
-            acc_addr_end = opcode_end + isa.ACC_ADDR_SIZE * 8
+            acc_addr_end = 8 + isa.ACC_ADDR_SIZE * 8
             ub_addr_end = acc_addr_end + isa.UB_ADDR_SIZE * 8
-
-            accum_raddr |= instruction[opcode_end:acc_addr_end]
+            accum_raddr |= instruction[8:acc_addr_end]
             ub_waddr |= instruction[acc_addr_end:ub_addr_end]
-            act_length |= instruction[-16:-8]
+            act_length |= instruction[ub_addr_end:ub_addr_end+8]
             # TODO: ACT takes function select bits
         with op == isa.OPCODE2BIN['SYNC'][0]:
             pass
         with op == isa.OPCODE2BIN['RHM'][0]:
-            rhm_addr_start = 8
             dispatch_rhm |= 1
             ub_addr_start = 8 + isa.HOST_ADDR_SIZE * 8
             ub_addr_end = ub_addr_start + isa.UB_ADDR_SIZE * 8
-            rhm_addr |= instruction[rhm_addr_start:ub_addr_start]
+            rhm_addr |= instruction[8:ub_addr_start]
             ub_raddr |= instruction[ub_addr_start:ub_addr_end]
             rhm_length |= instruction[-16:-8]
         with op == isa.OPCODE2BIN['HLT'][0]:
@@ -90,4 +87,3 @@ def decode(instruction):
             print("otherwise")
 
     return dispatch_mm, dispatch_act, dispatch_rhm, dispatch_whm, dispatch_halt, ub_addr, ub_raddr, ub_waddr, rhm_addr, whm_addr, rhm_length, whm_length, mmc_length, act_length, accum_raddr, accum_waddr, accum_overwrite, switch_weights, weights_we
-

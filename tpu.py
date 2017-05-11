@@ -10,8 +10,9 @@ from activate import act_top
 ############################################################
 
 accum_act_raddr = WireVector(ACC_ADDR_SIZE)  # Activate unit read address for accumulator buffers
-weights_in = Input(MATSIZE*DWIDTH, "weights_in")
-halt = Output(1)
+weights_in = Input(MATSIZE*MATSIZE*DWIDTH, "weights_in")
+halt = Output(1)  # When raised, stop simulation
+read_weights = Output(1)  # When raised, weights captured from weights input
 
 ############################################################
 #  Instruction Memory and PC
@@ -45,6 +46,7 @@ UB2MM = UBuffer[ub_mm_raddr]
 dispatch_mm, dispatch_act, dispatch_rhm, dispatch_whm, dispatch_halt, ub_start_addr, ub_dec_addr, ub_dest_addr, rhm_dec_addr, whm_dec_addr, rhm_length, whm_length, mmc_length, act_length, accum_raddr, accum_waddr, accum_overwrite, switch_weights, weights_we = decode(instr)
 
 halt <<= dispatch_halt
+read_weights <<= weights_we
 
 ############################################################
 #  Matrix Multiply Unit
@@ -72,7 +74,7 @@ with conditional_assignment:
 
 hostmem_raddr = Output(HOST_ADDR_SIZE, "raddr")
 hostmem_rdata = Input(DWIDTH*MATSIZE)
-hostmem_re = Output(1)
+hostmem_re = Output(1, "hostmem_re")
 hostmem_waddr = Output(HOST_ADDR_SIZE)
 hostmem_wdata = Output(DWIDTH*MATSIZE)
 hostmem_we = Output(1)
@@ -104,6 +106,7 @@ with conditional_assignment:
 
 
 # Read Host Memory control logic
+probe(rhm_length, "rhm_length")
 rhm_N = Register(len(rhm_length))
 rhm_addr = Register(len(rhm_dec_addr))
 rhm_busy = Register(1)
