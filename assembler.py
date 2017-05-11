@@ -53,9 +53,6 @@ TOP_LEVEL_SEP = re.compile(r'[a-zA-Z]+\s+')
 
 SUFFIX = '.out'
 
-ENDIANNESS = 'big'
-#ENDIANNESS = 'little'
-
 
 def DEBUG(string):
     if args.debug:
@@ -106,7 +103,6 @@ def assemble(path, n):
         if 'R' in flags:
             flag |= FUNC_RELU_MASK
 
-
         # binary for flags
         bin_flags = flag.to_bytes(1, byteorder=ENDIANNESS)
 
@@ -127,14 +123,14 @@ def assemble(path, n):
             bin_operands += operands[2].to_bytes(n_3rd, byteorder=ENDIANNESS)
 
         # binary for instruction
-        #bin_rep = bin_opcode + bin_operands + bin_flags
+        # bin_rep = bin_opcode + bin_operands + bin_flags
         bin_rep = bin_flags + bin_operands + bin_opcode
 
-        if len(bin_rep) < 14:
+        if len(bin_rep) < INSTRUCTION_WIDTH_BYTES:
             x = 0
-            #bin_rep += x.to_bytes(14 - len(bin_rep), byteorder=ENDIANNESS)
-            zeros = x.to_bytes(14 - len(bin_rep), byteorder=ENDIANNESS)
-            #bin_rep = bin_opcode + bin_operands + zeros + bin_flags
+            # bin_rep += x.to_bytes(14 - len(bin_rep), byteorder=ENDIANNESS)
+            zeros = x.to_bytes(INSTRUCTION_WIDTH_BYTES - len(bin_rep), byteorder=ENDIANNESS)
+            # bin_rep = bin_opcode + bin_operands + zeros + bin_flags
             bin_rep = bin_flags + bin_operands + zeros + bin_opcode
 
         DEBUG(line[:-1])
