@@ -11,6 +11,7 @@ from activate import act_top
 
 accum_act_raddr = WireVector(ACC_ADDR_SIZE)  # Activate unit read address for accumulator buffers
 weights_in = Input(MATSIZE*DWIDTH, "weights_in")
+halt = Output(1)
 
 ############################################################
 #  Instruction Memory and PC
@@ -41,7 +42,9 @@ UB2MM = UBuffer[ub_mm_raddr]
 #  Decoder
 ############################################################
 
-dispatch_mm, dispatch_act, dispatch_rhm, dispatch_whm, ub_start_addr, ub_dec_addr, ub_dest_addr, rhm_dec_addr, whm_dec_addr, rhm_length, whm_length, mmc_length, act_length, accum_raddr, accum_waddr, accum_overwrite, switch_weights, weights_we = decode(instr)
+dispatch_mm, dispatch_act, dispatch_rhm, dispatch_whm, dispatch_halt, ub_start_addr, ub_dec_addr, ub_dest_addr, rhm_dec_addr, whm_dec_addr, rhm_length, whm_length, mmc_length, act_length, accum_raddr, accum_waddr, accum_overwrite, switch_weights, weights_we = decode(instr)
+
+halt <<= dispatch_halt
 
 ############################################################
 #  Matrix Multiply Unit

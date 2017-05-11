@@ -125,7 +125,7 @@ def MMArray(data_width, matrix_size, data_in, new_weights, weights_in, weights_w
 
     # Divide FIFO output into rows (each row datawidth x matrixsize bits)
     rowsize = data_width * matrix_size
-    weight_arr = [ weights_in[i*rowsize : i*rowsize + rowsize] for i in range(matrix_size) ]
+    weight_arr = [ weights_in[i*rowsize : i*rowsize + rowsize] for i in reversed(range(matrix_size)) ]
     # Mux the wire for this row
     current_weights_wire = mux(progstep, *weight_arr)
     # Split the wire into an array of 8-bit values

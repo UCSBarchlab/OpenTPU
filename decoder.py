@@ -33,6 +33,7 @@ def decode(instruction):
     dispatch_act = WireVector(1)
     dispatch_rhm = WireVector(1)
     dispatch_whm = WireVector(1)
+    dispatch_halt = WireVector(1)
     
     op = instruction[:8]
     probe(op, 'op')
@@ -83,10 +84,10 @@ def decode(instruction):
             ub_raddr |= instruction[ub_addr_start:ub_addr_end]
             rhm_length |= instruction[-16:-8]
         with op == isa.OPCODE2BIN['HLT'][0]:
-            pass
+            dispatch_halt |= 1
 
         with otherwise:
             print("otherwise")
 
-    return dispatch_mm, dispatch_act, dispatch_rhm, dispatch_whm, ub_addr, ub_raddr, ub_waddr, rhm_addr, whm_addr, rhm_length, whm_length, mmc_length, act_length, accum_raddr, accum_waddr, accum_overwrite, switch_weights, weights_we
+    return dispatch_mm, dispatch_act, dispatch_rhm, dispatch_whm, dispatch_halt, ub_addr, ub_raddr, ub_waddr, rhm_addr, whm_addr, rhm_length, whm_length, mmc_length, act_length, accum_raddr, accum_waddr, accum_overwrite, switch_weights, weights_we
 
