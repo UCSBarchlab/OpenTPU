@@ -24,7 +24,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--path', action='store',
-                        help='path to source file.')
+                        help='dest file.')
     parser.add_argument('--shape', action='store', type=int, nargs='+',
                         help = 'shape of matrix to generate.')
     parser.add_argument('--debug', action='store_true',
