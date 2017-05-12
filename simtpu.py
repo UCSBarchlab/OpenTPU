@@ -30,7 +30,7 @@ for i in range(int(len(ins)/width)):  # once per instruction
         val = (val << 8) | ins.pop(0)
     instrs.append(val)
 
-#print(list(map(hex, instrs)))
+print(list(map(hex, instrs)))
 
 def concat_vec(vec, bits=8):
     t = 0
@@ -82,8 +82,9 @@ d = {
 }
 
 sim.step(d)
-
+i = 0
 while True:
+    i += 1
     # Halt signal
     if sim.inspect(halt):
         break

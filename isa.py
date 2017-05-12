@@ -2,19 +2,28 @@
 # Str -> (opcode_value, src_len, tar_len, 3rd_len)
 
 """
-===binary encoding====
+The assembly format for most instructions (RHM, WHM, MMC, ACT) is
+    INSTRUCTION SRC, DEST, LENGTH 
+For RW, it is
+    RW SRC
+for HLT, it is
+    HLT
 
-INST is encoded in a little-endian format.
-OPCODE values are defined in OPCODE2BIN.
+=== Binary Encoding ====
+
+| opcode | flags | length | addr | ub addr |
+|   1    |   1   |   1    |  8   |    3    |
+|13    13|12   12|11    11|10   3|2       0|
+
+All numbers above are expressed in BYTES.
+The 'addr' field is used for host memory address (for RHM and WHM),
+weight DRAM address (for RW), and accumulator address (for MMC and ACT).
+For the later two, the field is larger than necessary, and only the lower bits are used.
+'ub addr' is always a Unified Buffer address.
+'length' is the number of vectors to read/write/process.
+
 FLAG field is r|r|f|f|f|o|s|c, r stands for reserved bit, s for switch bit,
 c for convolve bit, f for function select bits, and o for override bit.
-
-SRC and TAR are addresses. They can be of variable length defined in
-global dict OPCODE2BIN.
-
-SRC/TAR takes 5B for memory operations to support at least 8GB addressing,
-3B for Unified Buffer addressing (96KB), 2B for accumulator buffer addressing
-(4K).
 
 """
 
@@ -27,6 +36,19 @@ HOST_ADDR_SIZE = 8 # 64-bit addressing
 DRAM_ADDR_SIZE = 5 # 33-bit addressing (TPU has 8 GB on-chip DRAM)
 UB_ADDR_SIZE = 3 # 17-bit addressing for Unified Buffer
 ACC_ADDR_SIZE = 2 # 12-bit addressing for accumulator
+OP_SIZE = 1
+FLAGS_SIZE = 1
+
+UBADDR_START = 0
+UBADDR_END = 3
+ADDR_START = 3
+ADDR_END = 11
+LEN_START = 11
+LEN_END = 12
+FLAGS_START = 12
+FLAGS_END = 13
+OP_START = 13
+OP_END = 14
 
 OPCODE2BIN = {
         'NOP':  (0x0, 0, 0, 0),

@@ -53,7 +53,8 @@ TOP_LEVEL_SEP = re.compile(r'[a-zA-Z]+\s+')
 
 SUFFIX = '.out'
 
-ENDIANNESS = 'little'
+#ENDIANNESS = 'little'
+ENDIANNESS = 'big'
 
 def DEBUG(string):
     if args.debug:
@@ -61,6 +62,21 @@ def DEBUG(string):
     else:
         return
 
+def putbytes(val, lo, hi):
+    # Pack value 'val' into a byte range of lo..hi inclusive.
+    val = int(val)
+    lo = lo * 8  # convert bytes to bits
+    hi = hi * 8 + 7
+    if val > pow(2, hi-lo+1):
+        raise Exception("Value {} too large for bit range {}-{}".format(val, lo, hi))
+    return val << lo
+    
+def format_instr(op, flags, length, addr, ubaddr):
+    return putbytes(op, OP_START, OP_END-1) |\
+           putbytes(flags, FLAGS_START, FLAGS_END-1) |\
+           putbytes(length, LEN_START, LEN_END-1) |\
+           putbytes(addr, ADDR_START, ADDR_END-1) |\
+           putbytes(ubaddr, UBADDR_START, UBADDR_END-1)
 
 def assemble(path, n):
     """ Translates an assembly code file into a binary.
@@ -103,15 +119,30 @@ def assemble(path, n):
             flag |= FUNC_SIGMOID_MASK
         if 'R' in flags:
             flag |= FUNC_RELU_MASK
-
+            
         # binary for flags
         bin_flags = flag.to_bytes(1, byteorder=ENDIANNESS)
 
-        opcode, n_src, n_tar, n_3rd = OPCODE2BIN[opcode]
+        opcode, n_src, n_dst, n_len = OPCODE2BIN[opcode]
 
+        if opcode == OPCODE2BIN['HLT'][0]:
+            instr = format_instr(op=opcode, flags=0, length=0, addr=0, ubaddr=0)
+        elif opcode == OPCODE2BIN['RW'][0]:
+            # RW instruction only has only operand (weight DRAM address)
+            instr = format_instr(op=opcode, flags=flag, length=0, addr=operands[0], ubaddr=0)
+        elif (opcode == OPCODE2BIN['RHM'][0]) or (opcode == OPCODE2BIN['ACT'][0]):
+            # RHM and ACT have UB-addr as their destination field
+            instr = format_instr(op=opcode, flags=flag, length=operands[2], addr=operands[0], ubaddr=operands[1])
+        else:
+            # WHM and MMC have UB-addr as their source field
+            instr = format_instr(op=opcode, flags=flag, length=operands[2], addr=operands[1], ubaddr=operands[0])
+
+        bin_code.write(instr.to_bytes(14, byteorder=ENDIANNESS))
+            
+        '''
         # binary representation for opcode
         bin_opcode = opcode.to_bytes(1, byteorder=ENDIANNESS)
-
+        
         # binary for oprands
         bin_operands = b''
         if len(operands) == 0:
@@ -124,18 +155,21 @@ def assemble(path, n):
             bin_operands += operands[2].to_bytes(n_3rd, byteorder=ENDIANNESS)
 
         # binary for instruction
-        bin_rep = bin_flags + bin_operands + bin_opcode
+        #bin_rep = bin_flags + bin_operands + bin_opcode
+        bin_rep = bin_opcode + bin_operands + bin_flags
 
         if len(bin_rep) < INSTRUCTION_WIDTH_BYTES:
             x = 0
             zeros = x.to_bytes(INSTRUCTION_WIDTH_BYTES - len(bin_rep), byteorder=ENDIANNESS)
-            bin_rep = bin_flags + bin_operands + zeros + bin_opcode
+            #bin_rep = bin_flags + bin_operands + zeros + bin_opcode
+            bin_rep = bin_opcode + bin_operands + zeros + bin_flags
 
         DEBUG(line[:-1])
         DEBUG(bin_rep)
 
         # write to file
         bin_code.write(bin_rep)
+        '''
 
         if counter == n:
             break

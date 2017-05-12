@@ -35,51 +35,48 @@ def decode(instruction):
     dispatch_whm = WireVector(1)
     dispatch_halt = WireVector(1)
 
-    op = instruction[-8:]
-    probe(op, 'op')
-
-    probe(instruction[:8], "flags")
+    # parse instruction
+    op = instruction[ isa.OP_START*8 : isa.OP_END*8 ]
+    probe(op, "op")
+    iflags = instruction[ isa.FLAGS_START*8 : isa.FLAGS_END*8 ]
+    ilength = instruction[ isa.LEN_START*8 : isa.LEN_END*8 ]
+    memaddr = instruction[ isa.ADDR_START*8 : isa.ADDR_END*8 ]
+    probe(memaddr, "addr")
+    ubaddr = instruction[ isa.UBADDR_START*8 : isa.UBADDR_END*8 ]
+    probe(ubaddr, "ubaddr")
 
     with conditional_assignment:
         with op == isa.OPCODE2BIN['NOP'][0]:
             pass
         with op == isa.OPCODE2BIN['WHM'][0]:
-            whm_addr_start = 8+(isa.UB_ADDR_SIZE * 8)
-            whm_addr_end = whm_addr_start + isa.HOST_ADDR_SIZE * 8
-            ub_raddr |= instruction[8:whm_addr_start]
-            whm_addr |= instruction[whm_addr_start:whm_addr_end]
             dispatch_whm |= 1
-            whm_length |= instruction[-16:-8]
+            ub_raddr |= ubaddr
+            whm_addr |= memaddr
+            whm_length |= ilength
         with op == isa.OPCODE2BIN['RW'][0]:
             weights_we |= 1
+            # Still need to add weight memory to system, instead of just simple input port
         with op == isa.OPCODE2BIN['MMC'][0]:
             dispatch_mm |= 1
-            ub_addr |= instruction[8:8+(isa.UB_ADDR_SIZE * 8)]
-            accum_waddr_start = 8 + isa.UB_ADDR_SIZE*8
-            accum_waddr_end = 8+(isa.UB_ADDR_SIZE * 8) + (isa.ACC_ADDR_SIZE * 8)
-            accum_waddr |= instruction[accum_waddr_start:accum_waddr_end]
-            mmc_length |= instruction[accum_waddr_end:accum_waddr_end + 8]
-            flags = instruction[:8]
-            accum_overwrite |= flags & isa.OVERWRITE_MASK
-            switch_weights |= flags & isa.SWITCH_MASK
+            ub_addr |= ubaddr
+            accum_waddr |= memaddr
+            mmc_length |= ilength
+            accum_overwrite |= iflags & isa.OVERWRITE_MASK
+            switch_weights |= iflags & isa.SWITCH_MASK
             # TODO: MMC may deal with convolution, set/clear that flag
         with op == isa.OPCODE2BIN['ACT'][0]:
             dispatch_act |= 1
-            acc_addr_end = 8 + isa.ACC_ADDR_SIZE * 8
-            ub_addr_end = acc_addr_end + isa.UB_ADDR_SIZE * 8
-            accum_raddr |= instruction[8:acc_addr_end]
-            ub_waddr |= instruction[acc_addr_end:ub_addr_end]
-            act_length |= instruction[ub_addr_end:ub_addr_end+8]
+            accum_raddr |= memaddr
+            ub_waddr |= ubaddr
+            act_length |= ilength
             # TODO: ACT takes function select bits
         with op == isa.OPCODE2BIN['SYNC'][0]:
             pass
         with op == isa.OPCODE2BIN['RHM'][0]:
             dispatch_rhm |= 1
-            ub_addr_start = 8 + isa.HOST_ADDR_SIZE * 8
-            ub_addr_end = ub_addr_start + isa.UB_ADDR_SIZE * 8
-            rhm_addr |= instruction[8:ub_addr_start]
-            ub_raddr |= instruction[ub_addr_start:ub_addr_end]
-            rhm_length |= instruction[-16:-8]
+            rhm_addr |= memaddr
+            ub_raddr |= ubaddr
+            rhm_length |= ilength
         with op == isa.OPCODE2BIN['HLT'][0]:
             dispatch_halt |= 1
 
