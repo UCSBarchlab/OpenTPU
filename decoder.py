@@ -69,6 +69,7 @@ def decode(instruction):
             accum_raddr |= memaddr
             ub_waddr |= ubaddr
             act_length |= ilength
+            probe(act_length, "act_length")
             # TODO: ACT takes function select bits
         with op == isa.OPCODE2BIN['SYNC'][0]:
             pass

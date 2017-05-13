@@ -68,6 +68,11 @@ with conditional_assignment:
     with ub_act_we:
         UBuffer[ub_act_waddr] |= act_out
 
+probe(ub_act_we, "ub_act_we")
+probe(ub_act_waddr, "ub_act_waddr")
+probe(act_out, "act_out")
+probe(accum_raddr_sig, "accum_raddr")
+
 ############################################################
 #  Read/Write Host Memory
 ############################################################
@@ -110,6 +115,7 @@ probe(rhm_length, "rhm_length")
 rhm_N = Register(len(rhm_length))
 rhm_addr = Register(len(rhm_dec_addr))
 rhm_busy = Register(1)
+rhm_ub_waddr = Register(len(ub_dec_addr))
 with conditional_assignment:
     with dispatch_rhm:
         rhm_N.next |= rhm_length
@@ -117,12 +123,14 @@ with conditional_assignment:
         hostmem_raddr |= rhm_dec_addr
         hostmem_re |= 1
         rhm_addr.next |=  + 1
+        rhm_ub_waddr.next |= ub_dec_addr
     with rhm_busy:
         rhm_N.next |= rhm_N - 1
         hostmem_raddr |= rhm_addr
         hostmem_re |= 1
         rhm_addr.next |= rhm_addr + 1
-        UBuffer[ub_dec_addr] |= hostmem_rdata
+        rhm_ub_waddr.next |= rhm_ub_waddr + 1
+        UBuffer[rhm_ub_waddr] |= hostmem_rdata
         with rhm_N == 1:
             rhm_busy.next |= 0
 

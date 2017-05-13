@@ -30,36 +30,69 @@ for i in range(int(len(ins)/width)):  # once per instruction
         val = (val << 8) | ins.pop(0)
     instrs.append(val)
 
-print(list(map(hex, instrs)))
+#print(list(map(hex, instrs)))
 
 def concat_vec(vec, bits=8):
     t = 0
+    mask = int('1'*bits, 2)
     for x in vec:
-        t = (t<<bits) + int(x)
+        t = (t<<bits) | (int(x) & mask)
     return t
 
 def concat_tile(tile, bits=8):
     val = 0
     size = len(tile)
+    mask = int('1'*bits, 2)
     for row in tile:
         for x in row:
-            val = (val<<bits) + int(x)
-    return val & (size*size*bits)  # if negative, truncate bits to correct size
+            val = (val<<bits) | (int(x) & mask)
+    #return val & (size*size*bits)  # if negative, truncate bits to correct size
+    return val
 
+def make_vec(value, bits=8):
+    vec = []
+    mask = int('1'*bits, 2)
+    while value > 0:
+        vec.append(value & mask)
+        value = value >> 8
+    return list(reversed(vec))
+
+def print_mem(mem):
+    ks = sorted(mem.keys())
+    for a in ks:
+        print(a, make_vec(mem[a]))
+
+def print_weight_mem(mem, bits=8, size=8):
+    ks = sorted(mem.keys())
+    mask = int('1'*(size*bits), 2)
+    vecs = []
+    for a in ks:
+        vec = []
+        tile = mem[a]
+        while tile > 0:
+            vec.append(make_vec(tile & mask))
+            tile = tile >> (8*8)
+        vecs.append(vec)
+    for a, vec in enumerate(vecs):
+        print(a, list(reversed(vec)))
+        
 # Read the dram files and build memory images
 hostarray = np.load(args.hostmem)
-#print(hostarray)
-#print(hostarray.shape)
-#print(hostarray)
+print(hostarray)
+print(hostarray.shape)
 hostmem = { a : concat_vec(vec) for a,vec in enumerate(hostarray) }
-print(hostmem)
+print("Host memory:")
+print_mem(hostmem)
     
 
 weightsarray = np.load(args.weightsmem)
 print(weightsarray)
 print(weightsarray.shape)
 weightsmem = { a : concat_tile(tile) for a,tile in enumerate(weightsarray) }
+#weightsmem = { a : concat_vec(vec) for a,vec in enumerate(weightsarray) }
 print(weightsmem)
+print("Weight memory:")
+print_weight_mem(weightsmem)
 
 '''
 Left-most element of each vector should be left-most in memory: use concat_list for each vector
@@ -69,7 +102,6 @@ The first vector should be at the "front" of the tile.
 
 For host mem, each vector goes at one address. First vector at address 0.
 '''
-
 
 # Run Simulation
 sim_trace = SimulationTrace()
@@ -110,8 +142,8 @@ while True:
             
     sim.step(d)
 
-print(hostmem)
-
+print("Host memory:")
+print_mem(hostmem)
 
 #sim_trace.render_trace()
 with open("trace.vcd", 'w') as f:

@@ -125,7 +125,9 @@ def assemble(path, n):
 
         opcode, n_src, n_dst, n_len = OPCODE2BIN[opcode]
 
-        if opcode == OPCODE2BIN['HLT'][0]:
+        if opcode == OPCODE2BIN['NOP'][0]:
+            instr = format_instr(op=opcode, flags=0, length=0, addr=0, ubaddr=0)
+        elif opcode == OPCODE2BIN['HLT'][0]:
             instr = format_instr(op=opcode, flags=0, length=0, addr=0, ubaddr=0)
         elif opcode == OPCODE2BIN['RW'][0]:
             # RW instruction only has only operand (weight DRAM address)

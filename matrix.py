@@ -1,7 +1,7 @@
 from pyrtl import *
 
 #set_debug_mode()
-
+globali = 0
 def MAC(data_width, matrix_size, data_in, acc_in, switchw, weight_in, weight_we, weight_tag):
     '''Multiply-Accumulate unit with programmable weight.
     Inputs
@@ -21,7 +21,7 @@ def MAC(data_width, matrix_size, data_in, acc_in, switchw, weight_in, weight_we,
     weight_we_reg: weight_we, stored in a pipeline register for cell below.
     weight_tag_reg: weight_tag, incremented and stored in a pipeline register for cell below
     '''
-    
+    global globali
     # Check lengths of inupts
     if len(weight_in) != len(data_in) != data_width:
         raise Exception("Expected 8-bit value in MAC.")
@@ -51,9 +51,13 @@ def MAC(data_width, matrix_size, data_in, acc_in, switchw, weight_in, weight_we,
 
     # Do the actual MAC operation
     weight = select(current_buffer, wbuf2, wbuf1)
-    probe(weight)
-    product = weight * data_in
-    out = product + acc_in
+    probe(weight, "weight" + str(globali))
+    globali += 1
+    inlen = max(len(weight), len(data_in))
+    product = weight.sign_extended(inlen*2) * data_in.sign_extended(inlen*2)
+    product = product[:inlen*2]
+    l = max(len(product), len(acc_in))
+    out = product.sign_extended(l) + acc_in.sign_extended(l)
     if len(out) > 32:
         out = out[:32]
                 
@@ -95,6 +99,7 @@ def MMArray(data_width, matrix_size, data_in, new_weights, weights_in, weights_w
     for i in range(matrix_size):  # for each row
         din = probe(data_in[i])
         switchin = probe(new_weights[i])
+        probe(switchin, "switch" + str(i))
         for j in range(matrix_size):  # for each column
             acc_out, din, switchin, newweight, newwe, newtag  = MAC(data_width, matrix_size, din, data_out[j], switchin, weights_in_last[j], weights_enable[j], weights_tag[j])
             probe(data_out[j], "MACacc{}_{}".format(i, j))
@@ -142,7 +147,7 @@ def MMArray(data_width, matrix_size, data_in, new_weights, weights_in, weights_w
         # Tag is same for whole row; use state index (runs from 0 to 255)
         wt <<= progstep
 
-    return data_out
+    return [ x.sign_extended(32) for x in data_out ]
 
 
 def accum(size, data_in, waddr, wen, wclear, raddr, lastvec):
@@ -190,6 +195,9 @@ def accumulators(accsize, datas_in, waddr, we, wclear, raddr, lastvec):
     wclearin = wclear
     lastvecin = lastvec
     for i,x in enumerate(datas_in):
+        probe(x, "acc_{}_in".format(i))
+        probe(wein, "acc_{}_we".format(i))
+        probe(waddrin, "acc_{}_waddr".format(i))
         dout, waddrin, wein, wclearin, lastvecin = accum(accsize, x, waddrin, wein, wclearin, raddr, lastvecin)
         accout[i] = dout
         done = lastvecin
@@ -424,6 +432,8 @@ def MMU_top(data_width, matrix_size, accum_size, ub_size, start, start_addr, nve
     ub_raddr: read address for unified buffer
     '''
 
+    probe(ub_rdata, "ub_mm_rdata")
+    
     accum_waddr = Register(accum_size)
     vec_valid = WireVector(1)
     overwrite_reg = Register(1)
@@ -436,6 +446,9 @@ def MMU_top(data_width, matrix_size, accum_size, ub_size, start, start_addr, nve
 
     rtl_assert(~(start & busy), Exception("Cannot dispatch new MM instruction while previous instruction is still being issued."))
 
+    probe(vec_valid, "MM_vec_valid_issue")
+    probe(busy, "MM_busy")
+    
     # Vector issue control logic
     with conditional_assignment:
         with start:  # new instruction being issued
@@ -447,6 +460,7 @@ def MMU_top(data_width, matrix_size, accum_size, ub_size, start, start_addr, nve
             ub_raddr.next |= start_addr  # begin issuing next cycle
         with busy:  # We're issuing a vector this cycle
             vec_valid |= 1
+            swap_reg.next |= 0
             N.next |= N - 1
             with N == 1:  # this was the last vector
                 last |= 1
@@ -458,6 +472,7 @@ def MMU_top(data_width, matrix_size, accum_size, ub_size, start, start_addr, nve
         
     acc_out, done = MMU(data_width=data_width, matrix_size=matrix_size, accum_size=accum_size, vector_in=ub_rdata, accum_raddr=accum_raddr, accum_waddr=accum_waddr, vec_valid=vec_valid, accum_overwrite=overwrite_reg, lastvec=last, switch_weights=swap_reg, ddr_data=Const(0), ddr_valid=Const(0), weights_in=weights_in, weights_we=weights_we)
 
+    probe(ub_raddr, "ub_mm_raddr")
 
     return ub_raddr, acc_out, busy, done
 

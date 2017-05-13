@@ -4,7 +4,7 @@ from pyrtl import *
 
 def relu_vector(vec, offset):
     assert offset <= 24
-    return [ select(d[-1], falsecase=d, truecase=Const(0))[24-offset:32-offset] for d in vec ]
+    return [ select(d[-1], falsecase=d, truecase=Const(0, len(d)))[24-offset:32-offset] for d in vec ]
     
 def act_top(start, start_addr, dest_addr, nvecs, accum_out):
 
