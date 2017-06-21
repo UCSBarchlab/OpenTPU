@@ -5,7 +5,13 @@ from pyrtl import *
 def relu_vector(vec, offset):
     assert offset <= 24
     return [ select(d[-1], falsecase=d, truecase=Const(0, len(d)))[24-offset:32-offset] for d in vec ]
-    
+
+def sigmoid(x):
+    RomBlock(bitwidth=8, addrwidth=3, romdata={0: 128, 1: 187, 2: 225, 3: 243, 4: 251, 5: 254, 6: 255, 7: 255, 8: 255})
+    x_gt_8 = x[3:]
+    return select(
+
+
 def act_top(start, start_addr, dest_addr, nvecs, accum_out):
 
     busy = Register(1)

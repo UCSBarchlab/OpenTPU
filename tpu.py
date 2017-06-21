@@ -1,4 +1,5 @@
 from pyrtl import *
+from pyrtl.analysis import area_estimation, TimingAnalysis
 
 from config import *
 from decoder import decode
@@ -138,3 +139,28 @@ probe(dispatch_mm, "dispatch_mm")
 probe(dispatch_act, "dispatch_act")
 probe(dispatch_rhm, "dispatch_rhm")
 probe(dispatch_whm, "dispatch_whm")
+
+def run_synth():
+    print("logic = {:2f} mm^2, mem={:2f} mm^2".format(*area_estimation()))
+    t = TimingAnalysis()
+    print("Max freq = {} MHz".format(t.max_freq()))
+    print("")
+    print("Running synthesis...")
+    synthesize()
+    print("logic = {:2f} mm^2, mem={:2f} mm^2".format(*area_estimation()))
+    t = TimingAnalysis()
+    print("Max freq = {} MHz".format(t.max_freq()))
+    print("")
+    print("Running optimizations...")
+    optimize()
+    total = 0
+    for gate in working_block():
+        if gate.op in ('s', 'c'):
+            pass
+        total += 1
+    print("Gate total: " + str(total))
+    print("logic = {:2f} mm^2, mem={:2f} mm^2".format(*area_estimation()))
+    t = TimingAnalysis()
+    print("Max freq = {} MHz".format(t.max_freq()))
+
+#run_synth()

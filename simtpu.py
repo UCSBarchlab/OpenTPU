@@ -18,7 +18,7 @@ args = parser.parse_args()
 
 # Read the program and build an instruction list
 with open(args.prog, 'rb') as f:
-    ins = [x for x in f.read()]  # create byte list from input
+    ins = [ord(x) for x in f.read()]  # create byte list from input
 
 instrs = []
 width = INSTRUCTION_WIDTH / 8

@@ -205,12 +205,12 @@ def accumulators(accsize, datas_in, waddr, we, wclear, raddr, lastvec):
     return accout, done
 
 
-def FIFO(matsize, mem_data, mem_valid, next_tile):
+def FIFO(matsize, mem_data, mem_valid, advance_fifo):
     '''
     matsize is the length of one row of the Matrix.
     mem_data is the connection from the DRAM controller, which is assumed to be 64 bytes wide.
     mem_valid is a one bit control signal from the controller indicating that the read completed and the current value is valid.
-    next_tile signals to drop the tile at the end of the FIFO and advance everything forward.
+    advance_fifo signals to drop the tile at the end of the FIFO and advance everything forward.
 
     Output
     tile, ready, full
@@ -218,20 +218,35 @@ def FIFO(matsize, mem_data, mem_valid, next_tile):
     ready: the tile output is valid
     full: there is no room in the FIFO
     '''
+
+    probe(mem_data, "weights_dram_in")
+    probe(mem_valid, "weights_dram_valid")
+    probe(advance_fifo, "weights_advance_fifo")
     
     # Make some size parameters, declare state register
     totalsize = matsize * matsize  # total size of a tile in bytes
-    tilesize = totalsize * 8
+    tilesize = totalsize * 8  # total size of a tile in bits
     ddrwidth = len(mem_data)/8  # width from DDR in bytes (typically 64)
     size = 1
-    while pow(2, size) < (totalsize/ddrwidth):
+    while pow(2, size) < (totalsize/ddrwidth):  # compute log of number of transfers required
         size = size << 1
     state = Register(size)  # Number of reads to receive (each read is ddrwidth bytes)
-
+    startup = Register(1)
+    startup.next <<= 1
+    
     # Declare top row of buffer: need to write to it in ddrwidth-byte chunks
     topbuf = [ Register(ddrwidth*8) for i in range(max(1, totalsize/ddrwidth)) ]
 
-    # When we get data from DRAM controller, write to correct buffer space
+    # Latch command to advance FIFO, since it may not complete immediately
+    droptile = Register(1)
+    clear_droptile = WireVector(1)
+    with conditional_assignment:
+        with advance_fifo:
+            droptile.next |= 1
+        with clear_droptile:
+            droptile.next |= 0
+    
+    # When we get data from DRAM controller, write to next buffer space
     with conditional_assignment:
         with mem_valid:
             state.next |= state + 1  # state tracks which ddrwidth-byte chunk we're writing to
@@ -243,9 +258,9 @@ def FIFO(matsize, mem_data, mem_valid, next_tile):
     full = Register(1)  # goes high when last chunk of top buffer is filled
     cleartop = WireVector(1)
     with conditional_assignment:
-        with mem_valid & (state == Const(len(topbuf))):
+        with mem_valid & (state == Const(len(topbuf)-1)):  # writing the last buffer spot now
             full.next |= 1
-        with cleartop:
+        with cleartop:  # advancing FIFO, so buffer becomes empty
             full.next |= 0
 
     # Build buffers for remainder of FIFO
@@ -255,20 +270,27 @@ def FIFO(matsize, mem_data, mem_valid, next_tile):
 
     # Handle moving data between the buffers
     with conditional_assignment:
-        with full & empty2:
-            buf2.next |= concat_list(topbuf)
-            cleartop |= 1
-            empty2.next |= 0
-        with empty3 & ~empty2:
+        with ~startup:
+            empty2.next |= 1
+            empty3.next |= 1
+            empty4.next |= 1
+        with full & empty2:  # First buffer is full, second is empty
+            buf2.next |= concat_list(topbuf)  # move data to second buffer
+            cleartop |= 1  # empty the first buffer
+            empty2.next |= 0  # mark the second buffer as non-empty
+        with empty3 & ~empty2:  # Third buffer is empty and second is full
             buf3.next |= buf2
             empty3.next |= 0
             empty2.next |= 1
-        with empty4 & ~empty3:
+        with empty4 & ~empty3:  # Fourth buffer is empty and third is full
             buf4.next |= buf3
             empty4.next |= 0
             empty3.next |= 1
+        with droptile:
+            empty4.next |= 1  # mark fourth buffer as free; tiles will advance automatically
+            clear_droptile |= 1
     
-    ready = (~empty4) & (~next_tile)  # there is data in final buffer and we're not about to change it
+    ready = startup & (~empty4) & (~droptile)  # there is data in final buffer and we're not about to change it
 
     return buf4, ready, full
 
@@ -360,7 +382,7 @@ def systolic_setup(data_width, matsize, vec_in, waddr, valid, clearbit, lastvec,
     return lastcolumn, switchout, addrout, weout, clearout, doneout
 
 
-def MMU(data_width, matrix_size, accum_size, vector_in, accum_raddr, accum_waddr, vec_valid, accum_overwrite, lastvec, switch_weights, ddr_data, ddr_valid, weights_in, weights_we):
+def MMU(data_width, matrix_size, accum_size, vector_in, accum_raddr, accum_waddr, vec_valid, accum_overwrite, lastvec, switch_weights, ddr_data, ddr_valid):  #, weights_in, weights_we):
     '''
 
     weights_in: TEMPORARY signal coming from off-chip with full weights tile. Replace this with the weights FIFO.
@@ -373,6 +395,10 @@ def MMU(data_width, matrix_size, accum_size, vector_in, accum_raddr, accum_waddr
     logn = 1
     while pow(2, logn) < (matrix_size):
         logn = logn << 1
+
+    programming = Register(1)  # if high, we're programming new weights now
+    waiting = WireVector(1)  # if high, a switch is underway and we're waiting
+        
     weights_wait = Register(logn1, "weights_wait")  # counts cycles since last weight push
     weights_count = Register(logn, "weights_count")  # counts cycles of current weight push
     startup = Register(1)
@@ -382,8 +408,11 @@ def MMU(data_width, matrix_size, accum_size, vector_in, accum_raddr, accum_waddr
 
     #rtl_assert(~(switch_weights & (weights_wait != 0)), Exception("Weights are not ready to switch. Need a minimum of {} + 1 cycles since last switch.".format(matrix_size)))
 
-    # FIFO is broken ;(
-    #weights_tile, tile_ready, full = FIFO(matsize=matrix_size, mem_data=ddr_data, mem_valid=ddr_valid, next_tile=done_programming)
+    # FIFO
+    weights_tile, tile_ready, full = FIFO(matsize=matrix_size, mem_data=ddr_data, mem_valid=ddr_valid, advance_fifo=done_programming)
+    probe(tile_ready, "tile_ready")
+    probe(weights_tile, "FIFO_weights_out")
+    '''
     # Instead:
     weights_tile = Register(data_width * matrix_size * matrix_size)
     tile_ready = Register(1)
@@ -393,6 +422,7 @@ def MMU(data_width, matrix_size, accum_size, vector_in, accum_raddr, accum_waddr
             tile_ready.next |= 1
         with otherwise:
             tile_ready.next |= 0
+    '''
     
     matin, switchout, addrout, weout, clearout, doneout = systolic_setup(data_width=data_width, matsize=matrix_size, vec_in=vector_in, waddr=accum_waddr, valid=vec_valid, clearbit=accum_overwrite, lastvec=lastvec, switch=switch_weights)
 
@@ -400,12 +430,33 @@ def MMU(data_width, matrix_size, accum_size, vector_in, accum_raddr, accum_waddr
 
     accout, done = accumulators(accsize=accum_size, datas_in=mouts, waddr=addrout, we=weout, wclear=clearout, raddr=accum_raddr, lastvec=doneout)
 
+    switchstart = switchout[0]
     totalwait = Const(matrix_size + 1)
-    
+    waiting <<= weights_wait != totalwait  # if high, we have to wait 
+
+    with conditional_assignment:
+        with ~startup:  # when we start, configure values to be ready to accept a new tile
+            weights_wait.next |= totalwait
+        with waiting:  # need to wait for switch to finish propagating
+            weights_wait.next |= weights_wait + 1
+        with switchstart:  # Weight switch initiated; begin waiting
+            weights_wait.next |= 0
+        with programming:  # We're pushing new weights now
+            with weights_count == Const(matrix_size):  # We've reached the end
+                programming.next |= 0
+                done_programming |= 1
+            with otherwise:  # Still programming; increment count and keep write signal high
+                weights_count.next |= weights_count + 1
+                weights_we |= 1
+        with tile_ready:  # We're not waiting or programming and a tile is ready: start programming
+            programming.next |= 1
+            weights_count.next |= 0
+        
+    '''
     with conditional_assignment:
         with startup == 0:  # When we start, we're ready to push weights as soon as FIFO is ready
             weights_wait.next |= totalwait
-        with switch_weights:  # Got a switch signal; start wait count
+        with switchout:  # Got a switch signal; start wait count
             weights_wait.next |= 1  
         with weights_wait != totalwait:  # Stall on the final number
             weights_wait.next |= weights_wait + 1
@@ -414,6 +465,8 @@ def MMU(data_width, matrix_size, accum_size, vector_in, accum_raddr, accum_waddr
         with otherwise:
             pass
 
+        with ~startup:
+            pass
         with (weights_wait == totalwait) & tile_ready:  # Ready to push new weights in
             weights_count.next |= 1
         with weights_count == Const(matrix_size):  # Finished pushing new weights
@@ -422,10 +475,11 @@ def MMU(data_width, matrix_size, accum_size, vector_in, accum_raddr, accum_waddr
         with otherwise:  # We're pushing weights now; increment count
             weights_count.next |= weights_count + 1
             weights_we |= 1
+    '''
 
     return accout, done
 
-def MMU_top(data_width, matrix_size, accum_size, ub_size, start, start_addr, nvecs, dest_acc_addr, overwrite, swap_weights, ub_rdata, accum_raddr, weights_in, weights_we):
+def MMU_top(data_width, matrix_size, accum_size, ub_size, start, start_addr, nvecs, dest_acc_addr, overwrite, swap_weights, ub_rdata, accum_raddr, weights_dram_in, weights_dram_valid):
     '''
 
     Outputs
@@ -470,7 +524,7 @@ def MMU_top(data_width, matrix_size, accum_size, ub_size, start, start_addr, nve
                 accum_waddr.next |= accum_waddr + 1
                 last |= 0
         
-    acc_out, done = MMU(data_width=data_width, matrix_size=matrix_size, accum_size=accum_size, vector_in=ub_rdata, accum_raddr=accum_raddr, accum_waddr=accum_waddr, vec_valid=vec_valid, accum_overwrite=overwrite_reg, lastvec=last, switch_weights=swap_reg, ddr_data=Const(0), ddr_valid=Const(0), weights_in=weights_in, weights_we=weights_we)
+    acc_out, done = MMU(data_width=data_width, matrix_size=matrix_size, accum_size=accum_size, vector_in=ub_rdata, accum_raddr=accum_raddr, accum_waddr=accum_waddr, vec_valid=vec_valid, accum_overwrite=overwrite_reg, lastvec=last, switch_weights=swap_reg, ddr_data=weights_dram, ddr_valid=weights_dram_valid)
 
     probe(ub_raddr, "ub_mm_raddr")
 
@@ -507,17 +561,19 @@ def testall(input_vectors, weights_vectors):
     valid = Input(1)
     raddr = Input(8, "raddr")  # accumulator read address to read out answers
     donesig = Output(1, "done")
-    weights_we = Input(1, "weights_we")
 
     outs = [Output(32, name="out{}".format(str(i))) for i in range(MATSIZE)]
 
-    ws = [ Const(item, bitwidth=DATWIDTH) for sublist in weights_vectors for item in sublist ]  # flatten weight matrix
-    ws = concat_list(ws)
+    #ws = [ Const(item, bitwidth=DATWIDTH) for sublist in weights_vectors for item in sublist ]  # flatten weight matrix
+    #ws = concat_list(ws)  # combine weights into single wire
+    ws = [ item for sublist in weights_vectors for item in sublist ]  # flatten weight matrix
+    print ws
+    #ws = reduce(lambda x, y : (x<<8)+y, ws)  # "concat" weights into one integer
     
-    #memdata = Input(64*8)
-    #memvalid = Input(1)
+    weightsdata = Input(64*8)
+    weightsvalid = Input(1)
     
-    accout, done = MMU(data_width=DATWIDTH, matrix_size=MATSIZE, accum_size=ACCSIZE, vector_in=invec, accum_raddr=raddr, accum_waddr=waddr, vec_valid=valid, accum_overwrite=Const(0), lastvec=lastvec, switch_weights=swap, ddr_data=Const(0), ddr_valid=Const(0), weights_in=ws, weights_we=weights_we)
+    accout, done = MMU(data_width=DATWIDTH, matrix_size=MATSIZE, accum_size=ACCSIZE, vector_in=invec, accum_raddr=raddr, accum_waddr=waddr, vec_valid=valid, accum_overwrite=Const(0), lastvec=lastvec, switch_weights=swap, ddr_data=weightsdata, ddr_valid=weightsvalid)
 
     donesig <<= done
     for out, accout in zip(outs, accout):
@@ -526,32 +582,36 @@ def testall(input_vectors, weights_vectors):
     sim_trace = SimulationTrace()
     sim = FastSimulation(tracer=sim_trace)
 
-    '''
-    # First, simulate memory read to feed weights to FIFO
-    ws = concat_list(ws)  # combine weights into single wire
-    chunk = 64*8  # size of one dram read
-    ws = [ ws[i*chunk:i*chunk+chunk] for i in range(len(ws)/chunk) ]  # divide weights into dram chunks
-    for block in ws:
-        d = {ins[j] : 0 for j in range(MATSIZE) }
-        d.update({ we : 0, swap : 0, waddr : 0, lastvec : 0, valid : 0, raddr : 0, memdata : block, memvalid : 1 })
-        sim.step(d)
-
-    # Wait until the FIFO is ready
-    for i in range(10):
-        sim.step()
-    '''
-
     # make a default input dictionary
-    din = { swap:0, waddr:0, lastvec:0, valid:0, raddr:0, weights_we:0 }
-    din.update({ins[j]:0 for j in range(MATSIZE)})
+    din = { swap:0, waddr:0, lastvec:0, valid:0, raddr:0, weightsdata:0, weightsvalid:0 }
+    din.update({ins[j] : 0 for j in range(MATSIZE)})
 
     # Give a few cycles for startup
     sim.step(din)
     
+    # First, simulate memory read to feed weights to FIFO
+    chunk = 64*8  # size of one dram read
+    #ws = [ ws[i*chunk:i*chunk+chunk] for i in range(max(1,len(ws)/chunk)) ]  # divide weights into dram chunks
+    # divide weights into dram-transfer sized chunks
+    ws = reduce(lambda x, y : (x<<8)+y, ws)  # "concat" weights into one integer
+    ws = [ (ws >> (64*8*i)) & pow(2, 64*8)-1 for i in range(max(1,len(weights_vectors)/64)) ]
+    print ws
+    for block in ws:
+        d = din.copy()
+        d.update({ins[j] : 0 for j in range(MATSIZE)})
+        d.update({ weightsdata:block, weightsvalid:1})
+        sim.step(d)
+
+    # Wait until the FIFO is ready
+    for i in range(10):
+        sim.step(din)
+    
+    #din.update({ins[j]:0 for j in range(MATSIZE)})
+    
     # Send signal to write weights
-    d = din.copy()
-    d[weights_we] = 1
-    sim.step(d)
+    #d = din.copy()
+    #d[weights_we] = 1
+    #sim.step(d)
 
     # Wait MATSIZE cycles for weights to propagate
     for i in range(MATSIZE*2):
