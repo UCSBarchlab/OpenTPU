@@ -219,8 +219,8 @@ def FIFO(matsize, mem_data, mem_valid, advance_fifo):
     full: there is no room in the FIFO
     '''
 
-    probe(mem_data, "weights_dram_in")
-    probe(mem_valid, "weights_dram_valid")
+    #probe(mem_data, "weights_dram_in")
+    #probe(mem_valid, "weights_dram_valid")
     probe(advance_fifo, "weights_advance_fifo")
     
     # Make some size parameters, declare state register
@@ -524,7 +524,7 @@ def MMU_top(data_width, matrix_size, accum_size, ub_size, start, start_addr, nve
                 accum_waddr.next |= accum_waddr + 1
                 last |= 0
         
-    acc_out, done = MMU(data_width=data_width, matrix_size=matrix_size, accum_size=accum_size, vector_in=ub_rdata, accum_raddr=accum_raddr, accum_waddr=accum_waddr, vec_valid=vec_valid, accum_overwrite=overwrite_reg, lastvec=last, switch_weights=swap_reg, ddr_data=weights_dram, ddr_valid=weights_dram_valid)
+    acc_out, done = MMU(data_width=data_width, matrix_size=matrix_size, accum_size=accum_size, vector_in=ub_rdata, accum_raddr=accum_raddr, accum_waddr=accum_waddr, vec_valid=vec_valid, accum_overwrite=overwrite_reg, lastvec=last, switch_weights=swap_reg, ddr_data=weights_dram_in, ddr_valid=weights_dram_valid)
 
     probe(ub_raddr, "ub_mm_raddr")
 

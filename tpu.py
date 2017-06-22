@@ -11,9 +11,10 @@ from activate import act_top
 ############################################################
 
 accum_act_raddr = WireVector(ACC_ADDR_SIZE)  # Activate unit read address for accumulator buffers
-weights_in = Input(MATSIZE*MATSIZE*DWIDTH, "weights_in")
+weights_dram_in = Input(64*8, "weights_dram_in")  # Input signal from weights DRAM controller
+weights_dram_valid = Input(1, "weights_dram_valid")  # Valid bit for weights DRAM signal
 halt = Output(1)  # When raised, stop simulation
-read_weights = Output(1)  # When raised, weights captured from weights input
+
 
 ############################################################
 #  Instruction Memory and PC
@@ -44,16 +45,15 @@ UB2MM = UBuffer[ub_mm_raddr]
 #  Decoder
 ############################################################
 
-dispatch_mm, dispatch_act, dispatch_rhm, dispatch_whm, dispatch_halt, ub_start_addr, ub_dec_addr, ub_dest_addr, rhm_dec_addr, whm_dec_addr, rhm_length, whm_length, mmc_length, act_length, accum_raddr, accum_waddr, accum_overwrite, switch_weights, weights_we = decode(instr)
+dispatch_mm, dispatch_act, dispatch_rhm, dispatch_whm, dispatch_halt, ub_start_addr, ub_dec_addr, ub_dest_addr, rhm_dec_addr, whm_dec_addr, rhm_length, whm_length, mmc_length, act_length, accum_raddr, accum_waddr, accum_overwrite, switch_weights, weights_raddr, weights_read = decode(instr)
 
 halt <<= dispatch_halt
-read_weights <<= weights_we
 
 ############################################################
 #  Matrix Multiply Unit
 ############################################################
 
-ub_mm_raddr_sig, acc_out, mm_busy, mm_done = MMU_top(data_width=DWIDTH, matrix_size=MATSIZE, accum_size=ACC_ADDR_SIZE, ub_size=UB_ADDR_SIZE, start=dispatch_mm, start_addr=ub_start_addr, nvecs=mmc_length, dest_acc_addr=accum_waddr, overwrite=accum_overwrite, swap_weights=switch_weights, ub_rdata=UB2MM, accum_raddr=accum_act_raddr, weights_in=weights_in, weights_we=weights_we)
+ub_mm_raddr_sig, acc_out, mm_busy, mm_done = MMU_top(data_width=DWIDTH, matrix_size=MATSIZE, accum_size=ACC_ADDR_SIZE, ub_size=UB_ADDR_SIZE, start=dispatch_mm, start_addr=ub_start_addr, nvecs=mmc_length, dest_acc_addr=accum_waddr, overwrite=accum_overwrite, swap_weights=switch_weights, ub_rdata=UB2MM, accum_raddr=accum_act_raddr, weights_dram_in=weights_dram_in, weights_dram_valid=weights_dram_valid)
 
 ub_mm_raddr <<= ub_mm_raddr_sig
 
@@ -135,6 +135,17 @@ with conditional_assignment:
         with rhm_N == 1:
             rhm_busy.next |= 0
 
+############################################################
+#  Weights Memory
+############################################################
+
+weights_dram_raddr = Output(WEIGHT_DRAM_ADDR_SIZE)
+weights_dram_read = Output(1)
+
+weights_dram_raddr <<= weights_raddr
+weights_dram_read <<= weights_read
+
+            
 probe(dispatch_mm, "dispatch_mm")
 probe(dispatch_act, "dispatch_act")
 probe(dispatch_rhm, "dispatch_rhm")

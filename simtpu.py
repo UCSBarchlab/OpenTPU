@@ -5,7 +5,7 @@ import numpy as np
 #set_debug_mode()
 
 from tpu import *
-from config import INSTRUCTION_WIDTH
+import config
 
 import sys
 
@@ -21,7 +21,7 @@ with open(args.prog, 'rb') as f:
     ins = [ord(x) for x in f.read()]  # create byte list from input
 
 instrs = []
-width = INSTRUCTION_WIDTH / 8
+width = config.INSTRUCTION_WIDTH / 8
 # This assumes instructions are strictly byte-aligned
 
 for i in range(int(len(ins)/width)):  # once per instruction
@@ -78,19 +78,19 @@ def print_weight_mem(mem, bits=8, size=8):
         
 # Read the dram files and build memory images
 hostarray = np.load(args.hostmem)
-print(hostarray)
-print(hostarray.shape)
+#print(hostarray)
+#print(hostarray.shape)
 hostmem = { a : concat_vec(vec) for a,vec in enumerate(hostarray) }
 print("Host memory:")
 print_mem(hostmem)
     
 
 weightsarray = np.load(args.weightsmem)
-print(weightsarray)
-print(weightsarray.shape)
+#print(weightsarray)
+#print(weightsarray.shape)
 weightsmem = { a : concat_tile(tile) for a,tile in enumerate(weightsarray) }
 #weightsmem = { a : concat_vec(vec) for a,vec in enumerate(weightsarray) }
-print(weightsmem)
+#print(weightsmem)
 print("Weight memory:")
 print_weight_mem(weightsmem)
 
@@ -103,17 +103,26 @@ The first vector should be at the "front" of the tile.
 For host mem, each vector goes at one address. First vector at address 0.
 '''
 
+tilesize = config.MATSIZE * config.MATSIZE  # number of weights in a tile
+nchunks = max(tilesize / 64, 1)  # Number of DRAM transfers needed from Weight DRAM for one tile
+chunkmask = pow(2,64*8)-1
+def getchunkfromtile(tile, chunkn):
+    if chunkn >= nchunks:
+        raise Exception("Reading more weights than are present in one tile?")
+    return (tile >> (nchunks - chunkn - 1)) & chunkmask
+
 # Run Simulation
 sim_trace = SimulationTrace()
 sim = FastSimulation(tracer=sim_trace, memory_value_map={ IMem : { a : v for a,v in enumerate(instrs)} })
 
-windex = 0
-d = {
-    weights_in : weightsmem[windex],
+din = {
+    weights_dram_in : 0,
+    weights_dram_valid : 0,
     hostmem_rdata : 0,
 }
 
-sim.step(d)
+chunkaddr = nchunks
+sim.step(din)
 i = 0
 while True:
     i += 1
@@ -121,12 +130,13 @@ while True:
     if sim.inspect(halt):
         break
 
-    # Read weights signal
-    if sim.inspect(read_weights):
-        windex += 1
-        if windex <= max(weightsmem.keys()):
-            # If we have another weight tile in memory, use it
-            d[weights_in] = weightsmem[windex]
+    d = din.copy()
+
+    # Check if we're doing a Read Weights
+    if chunkaddr < nchunks:
+        d[weights_dram_in] = getchunkfromtile(weighttile, chunkaddr)
+        d[weights_dram_valid] = 1
+        chunkaddr += 1
 
     # Read host memory signal
     if sim.inspect(hostmem_re):
@@ -139,10 +149,16 @@ while True:
         waddr = sim.inspect(hostmem_waddr)
         wdata = sim.inspect(hostmem_wdata)
         hostmem[waddr] = wdata
-            
+
+    # Read weights memory signal
+    if sim.inspect(weights_dram_read):
+        weightaddr = sim.inspect(weights_dram_raddr)
+        weighttile = weightsmem[weightaddr]
+        chunkaddr = 0
+        
     sim.step(d)
 
-print("Host memory:")
+print("Final Host memory:")
 print_mem(hostmem)
 
 #sim_trace.render_trace()

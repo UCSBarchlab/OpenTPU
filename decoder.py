@@ -15,7 +15,8 @@ def decode(instruction):
     accum_waddr = WireVector(ACCSIZE)
     accum_overwrite = WireVector(1)
     switch_weights = WireVector(1)
-    weights_we = WireVector(1)
+    weights_raddr = WireVector(config.WEIGHT_DRAM_ADDR_SIZE)  # read address for weights DRAM
+    weights_read = WireVector(1)  # raised high to perform DRAM read
 
     ub_addr = WireVector(24)  # goes to FSM
     ub_raddr = WireVector(config.UB_ADDR_SIZE)  # goes to UB read addr port
@@ -54,8 +55,8 @@ def decode(instruction):
             whm_addr |= memaddr
             whm_length |= ilength
         with op == isa.OPCODE2BIN['RW'][0]:
-            weights_we |= 1
-            # Still need to add weight memory to system, instead of just simple input port
+            weights_raddr |= memaddr
+            weights_read |= 1
         with op == isa.OPCODE2BIN['MMC'][0]:
             dispatch_mm |= 1
             ub_addr |= ubaddr
@@ -84,4 +85,4 @@ def decode(instruction):
         with otherwise:
             print("otherwise")
 
-    return dispatch_mm, dispatch_act, dispatch_rhm, dispatch_whm, dispatch_halt, ub_addr, ub_raddr, ub_waddr, rhm_addr, whm_addr, rhm_length, whm_length, mmc_length, act_length, accum_raddr, accum_waddr, accum_overwrite, switch_weights, weights_we
+    return dispatch_mm, dispatch_act, dispatch_rhm, dispatch_whm, dispatch_halt, ub_addr, ub_raddr, ub_waddr, rhm_addr, whm_addr, rhm_length, whm_length, mmc_length, act_length, accum_raddr, accum_waddr, accum_overwrite, switch_weights, weights_raddr, weights_read
