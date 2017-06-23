@@ -48,8 +48,8 @@ def main():
     print 'num of features: {}'.format(num_features)
 
     with tf.name_scope('IO'):
-        inputs = tf.placeholder(np.float32 if args.raw else tf.qint8, [None, num_features], name='X')
-        outputs = tf.placeholder(np.float32 if args.raw else tf.qint8, [None, 1], name='Yhat')
+        inputs = tf.placeholder(np.float32, [None, num_features], name='X')
+        outputs = tf.placeholder(np.float32, [None, 1], name='Yhat')
     
     with tf.name_scope('LAYER'):
         # DNN architecture
@@ -57,11 +57,11 @@ def main():
         layers = [num_features, 8, 8, 1]
         # Weight matrices
         m1 = tf.Variable(tf.random_normal([layers[0], layers[1]],
-            0, .1, dtype=tf.float32 if args.raw else tf.qint8), name='m1')
+            0, .1, dtype=tf.float32), name='m1')
         m2 = tf.Variable(tf.random_normal([layers[1], layers[2]],
-            0, .1, dtype=tf.float32 if args.raw else tf.qint8), name='m2')
+            0, .1, dtype=tf.float32), name='m2')
         m3 = tf.Variable(tf.random_normal([layers[2], layers[3]],
-            0, .1, dtype=tf.float32 if args.raw else tf.qint8), name='m3')
+            0, .1, dtype=tf.float32), name='m3')
         #m4 = tf.Variable(tf.random_normal([layers[3], layers[4]], 0, .1, dtype=tf.float32), name='m4')
         #m_out = tf.Variable(tf.random_normal([layers[4], layers[5]],
         #    0, .1, dtype=tf.float32), name='m_out')

@@ -1,6 +1,3 @@
-# Map text opcode to instruction decomposition info.
-# Str -> (opcode_value, src_len, tar_len, 3rd_len)
-
 """
 The assembly format for most instructions (RHM, WHM, MMC, ACT) is
     INSTRUCTION SRC, DEST, LENGTH 
@@ -50,6 +47,8 @@ FLAGS_END = 13
 OP_START = 13
 OP_END = 14
 
+# Map text opcode to instruction decomposition info.
+# Str -> (opcode_value, src_len, dst_len, 3rd_len)
 OPCODE2BIN = {
         'NOP':  (0x0, 0, 0, 0),
         'WHM':  (0x1, UB_ADDR_SIZE,   HOST_ADDR_SIZE, 1),
