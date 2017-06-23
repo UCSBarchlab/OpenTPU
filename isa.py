@@ -24,8 +24,8 @@ c for convolve bit, f for function select bits, and o for override bit.
 
 """
 
-# ENDIANNESS = 'big'
-ENDIANNESS = 'little'
+ENDIANNESS = 'big'
+#ENDIANNESS = 'little'
 
 INSTRUCTION_WIDTH_BYTES = 14
 
@@ -62,8 +62,8 @@ OPCODE2BIN = {
 
 BIN2OPCODE = {v[0]: k for k, v in OPCODE2BIN.items()}
 
-SWITCH_MASK = 0x1
-CONV_MASK = 0x2
-OVERWRITE_MASK = 0x4 # whether MMC should overwrite accumulator value or add to it
-FUNC_SIGMOID_MASK = 0b001 << 3
-FUNC_RELU_MASK = 0b010 << 3
+SWITCH_MASK =    0b00000001
+CONV_MASK =      0b00000010
+OVERWRITE_MASK = 0b00000100  # whether MMC should overwrite accumulator value or add to it
+ACT_FUNC_MASK =  0b00011000  # 0 for nothing; 1 for ReLU; 2 for sigmoid
+
