@@ -32,7 +32,6 @@ We used details from Google's paper titled "In-Datacentre Performance Analysis o
 - RW
 - MMC
 - ACT
-- SYNC
 - NOP
 - HLT
 
