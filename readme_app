@@ -15,7 +15,9 @@ After running the above command, two files are generated: simple_nn_weight_dram.
 
     python gen_one_hot.py --path simple_test --shape 100 8 --range 1, 9
 
-simple_nn.a is the assembly program for this simple nn.
+After which simple_test.npy will be generated and it should be used as the host memory by OpenTPU.
+
+We also provide simple_nn.a -- the assembly program for this simple nn.
 
 2. Tensorflow DNN regression
 
