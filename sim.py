@@ -2,6 +2,7 @@
 import argparse
 import sys
 import numpy as np
+from collections import deque
 from math import exp
 
 import isa
@@ -24,7 +25,7 @@ class TPUSim(object):
             np.zeros((96000, WIDTH), dtype=np.int8))
         self.accumulator = (np.zeros((4000, WIDTH), dtype=np.float32) if args.raw else
             np.zeros((4000, WIDTH), dtype=np.int32))
-        self.weight_fifo = []
+        self.weight_fifo = deque()
 
     def run(self):
         # load program and execute instructions
@@ -59,13 +60,14 @@ class TPUSim(object):
         (⌐■_■)""")
 
     def decode(self):
-        opcode = int.from_bytes(self.program.read(1), byteorder='little')
+        opcode = int.from_bytes(self.program.read(isa.OP_SIZE), byteorder='big')
         opcode = isa.BIN2OPCODE[opcode]
 
-        flag = int.from_bytes(self.program.read(1), byteorder='little')
-        length = int.from_bytes(self.program.read(isa.OPCODE2BIN[opcode][3]), byteorder='little')
-        src_addr = int.from_bytes(self.program.read(isa.OPCODE2BIN[opcode][1]), byteorder='little')
-        dest_addr = int.from_bytes(self.program.read(isa.OPCODE2BIN[opcode][2]), byteorder='little')
+        flag = int.from_bytes(self.program.read(isa.FLAGS_SIZE), byteorder='big')
+        length = int.from_bytes(self.program.read(isa.LEN_SIZE), byteorder='big')
+        src_addr = int.from_bytes(self.program.read(isa.ADDR_SIZE), byteorder='big')
+        dest_addr = int.from_bytes(self.program.read(isa.UB_ADDR_SIZE), byteorder='big')
+        #print('{} decoding: len {}, flags {}, src {}, dst {}'.format(opcode, length, flag, src_addr, dest_addr))
         return opcode, src_addr, dest_addr, length, flag
 
     # opcodes
@@ -86,9 +88,7 @@ class TPUSim(object):
 
         # downsample/normalize if needed
         if not args.raw:
-            print(result[0].dtype)
             result = [v & 0x000000FF for v in result]
-        print(result)
         self.unified_buffer[dest:dest+length] = result
 
     def memops(self, opcode, src_addr, dest_addr, length, flag):
@@ -116,7 +116,9 @@ class TPUSim(object):
 
         inp = self.unified_buffer[ub_addr: ub_addr + size]
         print('MMC input shape: {}'.format(inp.shape))
-        out = np.matmul(inp, self.weight_fifo.pop(0))
+        weight_mat = self.weight_fifo.popleft()
+        print('MMC weight: {}'.format(weight_mat))
+        out = np.matmul(inp, weight_mat)
         print('MMC output shape: {}'.format(out.shape))
         overwrite = isa.OVERWRITE_MASK & flags
         if overwrite:
