@@ -20,8 +20,10 @@ class TPUSim(object):
         if not args.raw:
             assert self.weight_memory.dtype == np.int8, 'DRAM weight mem is not 8-bit ints'
             assert self.host_memory.dtype == np.int8, 'Hostmem not 8-bit ints'
-        self.unified_buffer = np.zeros((96000, WIDTH), dtype=np.float32) if args.raw else np.zeros((96000, WIDTH), dtype=np.int8)
-        self.accumulator = np.zeros((4000, WIDTH), dtype=np.float32)
+        self.unified_buffer = (np.zeros((96000, WIDTH), dtype=np.float32) if args.raw else
+            np.zeros((96000, WIDTH), dtype=np.int8))
+        self.accumulator = (np.zeros((4000, WIDTH), dtype=np.float32) if args.raw else
+            np.zeros((4000, WIDTH), dtype=np.int32))
         self.weight_fifo = []
 
     def run(self):
@@ -73,7 +75,7 @@ class TPUSim(object):
         result = self.accumulator[src:src+length]
         if flag & isa.FUNC_RELU_MASK:
             print('  RELU!!!!')
-            vfunc = np.vectorize(lambda x: 0. if x < 0. else x)
+            vfunc = np.vectorize(lambda x: 0 * x if x < 0. else x)
         elif flag & isa.FUNC_SIGMOID_MASK:
             print('  SIGMOID')
             vfunc = np.vectorize(lambda x: int(255./(1.+exp(-x))))
@@ -84,6 +86,7 @@ class TPUSim(object):
 
         # downsample/normalize if needed
         if not args.raw:
+            print(result[0].dtype)
             result = [v & 0x000000FF for v in result]
         print(result)
         self.unified_buffer[dest:dest+length] = result
