@@ -47,12 +47,12 @@ def train(path, lpath):
         syn0 += np.dot(l0.T,l1_delta)
     print 'syn0: {}'.format(syn0)
     print 'l1: {}'.format(l1)
-    with open('reference', 'w') as f:
-        pickle.dump((X, y, l1, syn0), f)
+    with open('simple_nn_gt', 'w') as f:
+        pickle.dump((l1, syn0), f)
         f.close()
     
     syn0 = float2byte(syn0)
-    gen_mem('weight_dram', syn0)
+    gen_mem('simple_nn_weight_dram', syn0)
 
 args = None
 

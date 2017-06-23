@@ -1,22 +1,27 @@
 import argparse
 import numpy as np
+from gen_mem import gen_mem
 
 args = None
 
-def gen_one_hot():
-    #one_hot = np.zeros((8, 8), dtype=np.int8)
-    one_hot = np.random.randint(-5, 5, (8, 8), dtype=np.int8)
-    # for i in xrange(8):
-    #     one_hot[i, i] = 1
-    for i in xrange(8):
-        one_hot[i, 0] = 64
+def gen_one_hot(lower=-5, upper=5, shape=(8, 8)):
+    #one_hot = np.random.randint(-5, 5, (8, 8), dtype=np.int8)
+    one_hot = np.random.randint(lower, upper, shape, dtype=np.int8)
+    # We eigher generate a squre matrix for training or generate a vector for testing.
+    if shape[0] == shape[1]:
+        for i in xrange(shape[0]):
+            one_hot[i, i] = 64
+    else:
+        assert shape[1] == 1
+        for i in xrange(shape[0]):
+            one_hot[i, 0] = np.random.randint(lower, upper, dtype=np.int8)
     return one_hot
 
 def gen_nn(path, shape, lower=None, upper=None):
-    nn = np.random.randint(lower, upper, shape, dtype=np.int8)
-    nn = gen_one_hot()
+    #nn = np.random.randint(lower, upper, shape, dtype=np.int8)
+    nn = gen_one_hot(lower, upper, shape)
     print(nn)
-    np.save(path, nn)
+    gen_mem(path, nn)
 
 def parse_args():
     global args
