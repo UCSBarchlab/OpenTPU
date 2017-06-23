@@ -35,6 +35,9 @@ UB_ADDR_SIZE = 3 # 17-bit addressing for Unified Buffer
 ACC_ADDR_SIZE = 2 # 12-bit addressing for accumulator
 OP_SIZE = 1
 FLAGS_SIZE = 1
+ADDR_SIZE = 8
+UB_ADDR_SIZE = 3
+LEN_SIZE = 1
 
 UBADDR_START = 0
 UBADDR_END = 3
