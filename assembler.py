@@ -183,7 +183,7 @@ def parse_args():
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--path', action='store',
+    parser.add_argument('path', action='store',
                         help='path to source file.')
     parser.add_argument('--n', action='store', type=int, default=0,
                         help='only parse first n lines of code, for dbg only.')

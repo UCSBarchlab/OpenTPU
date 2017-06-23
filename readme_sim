@@ -4,7 +4,7 @@ sim.py implements the functional simulator of OpenTPU. It reads in three cmd arg
 
 Example usage:
 
-    python sim.py boston.a boston_input.npy boston_weights.npy
+    python sim.py boston.out boston_input.npy boston_weights.npy
 
 For the .npy data files, please refer to __Applications__ for how to generate them.
 

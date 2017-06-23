@@ -1,10 +1,12 @@
 # coding=utf-8
+import argparse
 import sys
 import numpy as np
 from math import exp
 
 import isa
 
+args = None
 # width of the tile
 WIDTH = 16
 
@@ -14,13 +16,12 @@ class TPUSim(object):
         # TODO: switch b/w 32-bit float vs int
         self.program = open(program_filename, 'rb')
         self.weight_memory = np.load(dram_filename)
-        # assert self.weight_memory.dtype == np.int8, 'DRAM weight mem is not 8-bit ints'
         self.host_memory = np.load(hostmem_filename)
-        # assert self.host_memory.dtype == np.int8, 'Hostmem not 8-bit ints'
-        self.unified_buffer = np.zeros((96000, WIDTH))
-        self.accumulator = np.zeros((4000, WIDTH))
-        # self.unified_buffer = np.zeros((96000, WIDTH), dtype=np.int8)
-        # self.accumulator = np.zeros((4000, WIDTH), dtype=np.int32)
+        if not args.raw:
+            assert self.weight_memory.dtype == np.int8, 'DRAM weight mem is not 8-bit ints'
+            assert self.host_memory.dtype == np.int8, 'Hostmem not 8-bit ints'
+        self.unified_buffer = np.zeros((96000, WIDTH), dtype=np.float32) if args.raw else np.zeros((96000, WIDTH), dtype=np.int8)
+        self.accumulator = np.zeros((4000, WIDTH), dtype=np.float32)
         self.weight_fifo = []
 
     def run(self):
@@ -37,7 +38,7 @@ class TPUSim(object):
             elif opcode == 'SYNC':
                 pass
             elif opcode == 'NOP':
-                print('No operation')
+                pass
             elif opcode == 'HLT':
                 print('H A L T')
                 break
@@ -45,8 +46,9 @@ class TPUSim(object):
                 raise Exception('WAT (╯°□°）╯︵ ┻━┻')
 
         # all done, exit
-        np.save('unified_buffer.npy', self.unified_buffer)
-        # TODO: cast outputs into 8bit ints if needed
+        savepath = 'sim32.npy' if args.raw else 'sim8.npy'
+        np.save(savepath, self.host_memory)
+        print(self.host_memory)
         self.program.close()
 
         print("""ALL DONE!
@@ -58,10 +60,10 @@ class TPUSim(object):
         opcode = int.from_bytes(self.program.read(1), byteorder='little')
         opcode = isa.BIN2OPCODE[opcode]
 
+        flag = int.from_bytes(self.program.read(1), byteorder='little')
+        length = int.from_bytes(self.program.read(isa.OPCODE2BIN[opcode][3]), byteorder='little')
         src_addr = int.from_bytes(self.program.read(isa.OPCODE2BIN[opcode][1]), byteorder='little')
         dest_addr = int.from_bytes(self.program.read(isa.OPCODE2BIN[opcode][2]), byteorder='little')
-        length = int.from_bytes(self.program.read(isa.OPCODE2BIN[opcode][3]), byteorder='little')
-        flag = int.from_bytes(self.program.read(1), byteorder='little')
         return opcode, src_addr, dest_addr, length, flag
 
     # opcodes
@@ -80,8 +82,10 @@ class TPUSim(object):
 
         result = vfunc(result)
 
-        # TODO: downsample/normalize if needed
-
+        # downsample/normalize if needed
+        if not args.raw:
+            result = [v & 0x000000FF for v in result]
+        print(result)
         self.unified_buffer[dest:dest+length] = result
 
     def memops(self, opcode, src_addr, dest_addr, length, flag):
@@ -108,18 +112,34 @@ class TPUSim(object):
         ))
 
         inp = self.unified_buffer[ub_addr: ub_addr + size]
+        print('MMC input shape: {}'.format(inp.shape))
         out = np.matmul(inp, self.weight_fifo.pop(0))
+        print('MMC output shape: {}'.format(out.shape))
         overwrite = isa.OVERWRITE_MASK & flags
         if overwrite:
             self.accumulator[accum_addr:accum_addr + size] = out
         else:
             self.accumulator[accum_addr:accum_addr + size] += out
 
+def parse_args():
+    global args
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('program', action='store',
+                        help='Path to assembly program file.')
+    parser.add_argument('dram_file', action='store',
+                        help='Path to dram file.')
+    parser.add_argument('host_file', action='store',
+                        help='Path to host file.')
+    parser.add_argument('--raw', action='store_true', default=False,
+                        help='Gen sim32.npy instead of sim8.npy.')
+    args = parser.parse_args()
 
 if __name__ == '__main__':
     if len(sys.argv) < 4:
         print('Usage:', sys.argv[0], 'PROGRAM_BINARY DRAM_FILE HOST_FILE')
         sys.exit(0)
-
-    tpusim = TPUSim(sys.argv[1], sys.argv[2], sys.argv[3])
+    
+    parse_args()
+    tpusim = TPUSim(args.program, args.dram_file, args.host_file)
     tpusim.run()

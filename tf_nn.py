@@ -175,7 +175,8 @@ def main():
         pred_out = np.array((pred_y.tolist(), y1.tolist(),
             y1_act.tolist(), y2.tolist(), y2_act.tolist()))
         np.save(args.save_output_path, pred_out)
-        np.save('gt32', pred_y)
+        if args.raw:
+            np.save('gt32', pred_y)
         print 'Prediction\nReal\tPredicted'
         for (y, y_hat) in zip(test_y, pred_y):
             print '{}\t{}'.format(y, y_hat)

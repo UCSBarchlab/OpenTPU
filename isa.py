@@ -52,7 +52,7 @@ OP_END = 14
 OPCODE2BIN = {
         'NOP':  (0x0, 0, 0, 0),
         'WHM':  (0x1, UB_ADDR_SIZE,   HOST_ADDR_SIZE, 1),
-        'RW':   (0x2, DRAM_ADDR_SIZE, 0,              0),
+        'RW':   (0x2, DRAM_ADDR_SIZE, 0,              1),
         'MMC':  (0x3, UB_ADDR_SIZE,   ACC_ADDR_SIZE,  1),
         'ACT':  (0x4, ACC_ADDR_SIZE,  UB_ADDR_SIZE,   1),
         'SYNC': (0x5, 0, 0, 0),
