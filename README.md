@@ -1,6 +1,6 @@
-# UCSB ArchLab OpenTPU Project
+# UCSB ArchLab OpenTPU Project 
 
-OpenTPU is an open-source re-implementation of Google's Tensor Processing Unit (TPU).
+OpenTPU is an open-source re-implementation of Google's Tensor Processing Unit (TPU) by the UC Santa Barbara ArchLab.
 
 The TPU is Google's custom ASIC for accelerating the inference phase of neural network computations.
 
