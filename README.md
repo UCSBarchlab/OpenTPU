@@ -1,10 +1,10 @@
 # UCSB ArchLab OpenTPU Project
 
-The OpenTPU project provides a programmable framework for creating machine learning acceleration hardware.
+OpenTPU is an open-source re-implementation of Google's Tensor Processing Unit (TPU).
 
-This project is a an attempt at an open-source version of Google's Tensor Processing Unit (TPU). The TPU is Google's custom ASIC for accelerating the inference phase of neural network computations.
+The TPU is Google's custom ASIC for accelerating the inference phase of neural network computations.
 
-We used details from Google's paper titled "In-Datacentre Performance Analysis of a Tensor Processing Unit" (https://arxiv.org/abs/1704.04760) which is to appear at ISCA2017.
+Our design is based on details from Google's paper titled "In-Datacentre Performance Analysis of a Tensor Processing Unit" (https://arxiv.org/abs/1704.04760), which is to appear at ISCA2017. However, no formal spec, interface, or ISA has yet been published for the TPU.
 
 #### The OpenTPU is powered by PyRTL (http://ucsbarchlab.github.io/PyRTL/).
 
@@ -20,7 +20,7 @@ Both PyRTL and numpy can be installed with pip; e.g., `pip install pyrtl`.
 
 To run the simple matrix multiply test in both the hardware and functional simulators:
 
-Make sure MATSIZE is set to 8 in config.py.
+Make sure MATSIZE is set to 8 in config.py, then
 
 ```
 python3 assembler.py simplemult.a
@@ -30,7 +30,7 @@ python3 sim.py simplemult.out simplemult_hostmem.npy simplemult_weights.npy
 
 To run the Boston housing data regression test in both the hardware and functional simulators:
 
-Make sure MATSIZE is set to 16 in config.py.
+Make sure MATSIZE is set to 16 in config.py, then
 ```
 python3 assembler.py boston.a
 python3 runtpu.py boston.out boston_inputs.npy boston_weights.npy
@@ -60,33 +60,30 @@ Example usage:
 
 
 ## FAQs:
-### What are the parts of the OpenTPU programmable hardware?
-#### The OpenTPU hardware consists of:
-- A weight FIFO
-- A matrix multiply unit
-- An activation unit (with ReLU and sigmoid activation functions)
-- An accumulator
-- A unified buffer
 
-### What does the OpenTPU do?
-#### This hardware is able to support:
-- Inference phase of neural network computations
+### How big/efficient/fast is OpenTPU?
+As of the alpha release, we do not have hard synthesis figures for the full 256x256 OpenTPU.
 
-### What CAN'T the OpenTPU do?
-#### The OpenTPU does not support:
-- Convolution operations
-- Pooling operations
-- Programming normalization
+### What can OpenTPU do?
+The hardware prototype can currently handle matrix multiplies and activations for ReLU and sigmoid --- i.e., the inference phase of many neural network computations.
 
-### Does the OpenTPU implement all the instructions from the paper?
-#### No, the OpenTPU currently supports the following instructions only:
-- RHM (read host memory)
-- WHM (write host memory)
-- RW (read weights)
-- MMC (matrix multiply)
-- ACT (activate)
-- NOP (no op)
-- HLT (halt)
+### What features are missing?
+Convolution, pooling, programmable normalization.
+
+### Does your design follow that of the TPU?
+We used high-level design details from the TPU paper to guide our design when possible. Thus, the major components of the chip are the same --- matrix multiply unit, unified buffer, activation unit, accumulator, weight FIFO, etc. Beyond that, the implementations may have many differences.
+
+### Does OpenTPU support all the same instructions as TPU?
+No. Currently, OpenTPU supports the RHM, WHM, RW, MMC, ACT, NOP, and HLT instructions (see ISA section for details). The purpose, definition, and specification of other TPU instructions is absent from the published paper. Some instructions will likely be added to OpenTPU as we continue development (such as SYNC), but the final ISA will likely feature many differences without a published spec from Google to work off of.
+
+### Is OpenTPU binary compatible with the TPU?
+No. There is no publicly available interface or spec for TPU.
+
+### I'd like to do some analysis/extensions of OpenTPU, but I need Verilog. Do you have a Verilog version?
+PyRTL can can output structural Verilog for the design, using the `OutputToVerilog` function.
+
+### I have suggestions, criticisms, and/or would like to contribute.
+That's not a question, but please get in touch! Email Deeksha (deeksha@cs.ucsb.edu) or Joseph (jmcmahan@cs.ucsb.edu).
 
 ### I'm a Distinguished Hardware Engineer at Google and the Lead Architect of the TPU. I see many inefficiencies in your implementation.
 Hi Norm! Tim welcomes you to Santa Barbara to talk about all things TPU :)
@@ -162,11 +159,11 @@ Adding --raw to the command generates 32b-float typed files instead of 8b ints.
 ### Latencies
 The following gives the hardware execution latency for each instruction on OpenTPU:
 
-RHM - _M_ cycles for reading _M_ vectors
-WHM - _M_ cycles for writing _M_ vectors
-RW - _N*N_/64 cycles for _N_x_N_ MM Array for DRAM transfer, and up to 3 additional cycles to propagate through the FIFO
-MMC - _L+2N_ cycles, for _N_x_N_ MM Array and _L_ vectors multiplied in the instruction
-ACT - _L+1_ cycles, for _L_ vectors activated in the instruction
+- RHM - _M_ cycles for reading _M_ vectors
+- WHM - _M_ cycles for writing _M_ vectors
+- RW - _N*N_/64 cycles for _N_x_N_ MM Array for DRAM transfer, and up to 3 additional cycles to propagate through the FIFO
+- MMC - _L+2N_ cycles, for _N_x_N_ MM Array and _L_ vectors multiplied in the instruction
+- ACT - _L+1_ cycles, for _L_ vectors activated in the instruction
 
 
 ## Microarchitecture
