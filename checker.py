@@ -24,6 +24,10 @@ args = None
 
 def equal(a1, a2):
     assert a1.shape == a2.shape, 'result file shape mismatch.'
+    if a1.dtype == np.int8:
+        a1 = a1.astype(np.uint8)
+    if a2.dtype == np.int8:
+        a2 = a2.astype(np.uint8)
     for x, y in np.nditer([a1, a2]):
         assert x == y, 'result value mismatch.'
 

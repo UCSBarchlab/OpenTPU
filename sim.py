@@ -118,6 +118,9 @@ class TPUSim(object):
         print('MMC input shape: {}'.format(inp.shape))
         weight_mat = self.weight_fifo.popleft()
         print('MMC weight: {}'.format(weight_mat))
+        if not args.raw:
+            inp = inp.astype(np.int32)
+            weight_mat = weight_mat.astype(np.int32)
         out = np.matmul(inp, weight_mat)
         print('MMC output shape: {}'.format(out.shape))
         overwrite = isa.OVERWRITE_MASK & flags
