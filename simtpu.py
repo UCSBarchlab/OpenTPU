@@ -35,7 +35,7 @@ for i in range(int(len(ins)/width)):  # once per instruction
 def concat_vec(vec, bits=8):
     t = 0
     mask = int('1'*bits, 2)
-    for x in vec:
+    for x in reversed(vec):
         t = (t<<bits) | (int(x) & mask)
     return t
 

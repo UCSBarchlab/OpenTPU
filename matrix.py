@@ -1,4 +1,6 @@
 from pyrtl import *
+from pyrtl import rtllib
+from pyrtl.rtllib import multipliers
 
 #set_debug_mode()
 globali = 0  # To give unique numbers to each MAC
@@ -53,11 +55,20 @@ def MAC(data_width, matrix_size, data_in, acc_in, switchw, weight_in, weight_we,
     weight = select(current_buffer, wbuf2, wbuf1)
     probe(weight, "weight" + str(globali))
     globali += 1
-    inlen = max(len(weight), len(data_in))
-    product = weight.sign_extended(inlen*2) * data_in.sign_extended(inlen*2)
-    product = product[:inlen*2]
-    l = max(len(product), len(acc_in))
-    out = product.sign_extended(l) + acc_in.sign_extended(l)
+    #inlen = max(len(weight), len(data_in))
+    #product = weight.sign_extended(inlen*2) * data_in.sign_extended(inlen*2)
+    #product = product[:inlen*2]
+    product = helperfuncs.mult_signed(weight, data_in)[:32]
+    #plen = len(weight) + len(data_in)
+    #product = weight.sign_extended(plen) * data_in.sign_extended(plen)
+    #product = product[:plen]
+    l = max(len(product), len(acc_in)) + 1
+    out = (product.sign_extended(l) + acc_in.sign_extended(l))[:-1]
+
+    #product = rtllib.multipliers.signed_tree_multiplier(weight, data_in)
+    #l = max(len(product), len(acc_in))
+    #out = product.sign_extended(l) + acc_in.sign_extended(l)
+
     if len(out) > 32:
         out = out[:32]
                 
@@ -130,11 +141,11 @@ def MMArray(data_width, matrix_size, data_in, new_weights, weights_in, weights_w
 
     # Divide FIFO output into rows (each row datawidth x matrixsize bits)
     rowsize = data_width * matrix_size
-    weight_arr = [ weights_in[i*rowsize : i*rowsize + rowsize] for i in reversed(range(matrix_size)) ]
+    weight_arr = [ weights_in[i*rowsize : i*rowsize + rowsize] for i in range(matrix_size) ]
     # Mux the wire for this row
     current_weights_wire = mux(progstep, *weight_arr)
     # Split the wire into an array of 8-bit values
-    current_weights = [ current_weights_wire[i*data_width:i*data_width+data_width] for i in range(matrix_size) ]
+    current_weights = [ current_weights_wire[i*data_width:i*data_width+data_width] for i in reversed(range(matrix_size)) ]
 
     # Connect top row to input and control signals
     for i, win in enumerate(weights_in_top):
@@ -259,7 +270,7 @@ def FIFO(matsize, mem_data, mem_valid, advance_fifo):
     with conditional_assignment:
         with mem_valid:
             state.next |= state + 1  # state tracks which ddrwidth-byte chunk we're writing to
-            for i, reg in enumerate(topbuf):  # enumerate a decoder for write-enable signals
+            for i, reg in enumerate(reversed(topbuf)):  # enumerate a decoder for write-enable signals
                 probe(reg, "fifo_reg{}".format(i))
                 with state == Const(i, bitwidth=size):
                     reg.next |= mem_data

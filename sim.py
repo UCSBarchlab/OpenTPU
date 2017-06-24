@@ -136,10 +136,10 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('program', action='store',
                         help='Path to assembly program file.')
-    parser.add_argument('dram_file', action='store',
-                        help='Path to dram file.')
     parser.add_argument('host_file', action='store',
                         help='Path to host file.')
+    parser.add_argument('dram_file', action='store',
+                        help='Path to dram file.')
     parser.add_argument('--raw', action='store_true', default=False,
                         help='Gen sim32.npy instead of sim8.npy.')
     args = parser.parse_args()
