@@ -9,7 +9,7 @@ import isa
 
 args = None
 # width of the tile
-WIDTH = 16
+WIDTH = 8
 
 
 class TPUSim(object):
@@ -82,7 +82,8 @@ class TPUSim(object):
             print('  SIGMOID')
             vfunc = np.vectorize(lambda x: int(255./(1.+exp(-x))))
         else:
-            raise Exception('(╯°□°）╯︵ ┻━┻ bad activation function!')
+            vfunc = np.vectorize(lambda x: x)
+            #raise Exception('(╯°□°）╯︵ ┻━┻ bad activation function!')
 
         result = vfunc(result)
 
