@@ -39,15 +39,15 @@ def decode(instruction):
 
     # parse instruction
     op = instruction[ isa.OP_START*8 : isa.OP_END*8 ]
-    probe(op, "op")
+    #probe(op, "op")
     iflags = instruction[ isa.FLAGS_START*8 : isa.FLAGS_END*8 ]
-    probe(iflags, "flags")
-    probe(accum_overwrite, "decode_overwrite")
+    #probe(iflags, "flags")
+    #probe(accum_overwrite, "decode_overwrite")
     ilength = instruction[ isa.LEN_START*8 : isa.LEN_END*8 ]
     memaddr = instruction[ isa.ADDR_START*8 : isa.ADDR_END*8 ]
-    probe(memaddr, "addr")
+    #probe(memaddr, "addr")
     ubaddr = instruction[ isa.UBADDR_START*8 : isa.UBADDR_END*8 ]
-    probe(ubaddr, "ubaddr")
+    #probe(ubaddr, "ubaddr")
 
     with conditional_assignment:
         with op == isa.OPCODE2BIN['NOP'][0]:
@@ -74,8 +74,8 @@ def decode(instruction):
             ub_waddr |= ubaddr
             act_length |= ilength
             act_type |= iflags[isa.ACT_FUNC_BITS]
-            probe(act_length, "act_length")
-            probe(act_type, "act_type")
+            #probe(act_length, "act_length")
+            #probe(act_type, "act_type")
             # TODO: ACT takes function select bits
         with op == isa.OPCODE2BIN['SYNC'][0]:
             pass
@@ -87,7 +87,7 @@ def decode(instruction):
         with op == isa.OPCODE2BIN['HLT'][0]:
             dispatch_halt |= 1
 
-        with otherwise:
-            print("otherwise")
+        #with otherwise:
+        #    print("otherwise")
 
     return dispatch_mm, dispatch_act, dispatch_rhm, dispatch_whm, dispatch_halt, ub_addr, ub_raddr, ub_waddr, rhm_addr, whm_addr, rhm_length, whm_length, mmc_length, act_length, act_type, accum_raddr, accum_waddr, accum_overwrite, switch_weights, weights_raddr, weights_read

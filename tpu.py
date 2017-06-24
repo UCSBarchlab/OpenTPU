@@ -22,14 +22,14 @@ halt = Output(1)  # When raised, stop simulation
 
 IMem = MemBlock(bitwidth=INSTRUCTION_WIDTH, addrwidth=IMEM_ADDR_SIZE)
 pc = Register(IMEM_ADDR_SIZE)
-probe(pc, 'pc')
+#probe(pc, 'pc')
 pc.incr = WireVector(1)
 with conditional_assignment:
     with pc.incr:
         pc.next |= pc + 1
 pc.incr <<= 1  # right now, increment the PC every cycle
 instr = IMem[pc]
-probe(instr, "instr")
+#probe(instr, "instr")
         
 ############################################################
 #  Unified Buffer
@@ -69,10 +69,10 @@ with conditional_assignment:
     with ub_act_we:
         UBuffer[ub_act_waddr] |= act_out
 
-probe(ub_act_we, "ub_act_we")
-probe(ub_act_waddr, "ub_act_waddr")
-probe(act_out, "act_out")
-probe(accum_raddr_sig, "accum_raddr")
+#probe(ub_act_we, "ub_act_we")
+#probe(ub_act_waddr, "ub_act_waddr")
+#probe(act_out, "act_out")
+#probe(accum_raddr_sig, "accum_raddr")
 
 ############################################################
 #  Read/Write Host Memory
@@ -112,7 +112,7 @@ with conditional_assignment:
 
 
 # Read Host Memory control logic
-probe(rhm_length, "rhm_length")
+#probe(rhm_length, "rhm_length")
 rhm_N = Register(len(rhm_length))
 rhm_addr = Register(len(rhm_dec_addr))
 rhm_busy = Register(1)
@@ -146,10 +146,10 @@ weights_dram_raddr <<= weights_raddr
 weights_dram_read <<= weights_read
 
             
-probe(dispatch_mm, "dispatch_mm")
-probe(dispatch_act, "dispatch_act")
-probe(dispatch_rhm, "dispatch_rhm")
-probe(dispatch_whm, "dispatch_whm")
+#probe(dispatch_mm, "dispatch_mm")
+#probe(dispatch_act, "dispatch_act")
+#probe(dispatch_rhm, "dispatch_rhm")
+#probe(dispatch_whm, "dispatch_whm")
 
 def run_synth():
     print("logic = {:2f} mm^2, mem={:2f} mm^2".format(*area_estimation()))

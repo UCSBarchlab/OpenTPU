@@ -1,3 +1,4 @@
+from functools import reduce
 
 #import pyrtl
 from pyrtl import *
