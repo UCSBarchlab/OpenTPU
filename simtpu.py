@@ -95,6 +95,7 @@ weightsmem = { a : concat_tile(tile) for a,tile in enumerate(weightsarray) }
 #weightsmem = { a : concat_vec(vec) for a,vec in enumerate(weightsarray) }
 print("Weight memory:")
 print_weight_mem(weightsmem, size=size)
+#print(weightsmem)
 
 '''
 Left-most element of each vector should be left-most in memory: use concat_list for each vector
@@ -109,9 +110,11 @@ tilesize = config.MATSIZE * config.MATSIZE  # number of weights in a tile
 nchunks = max(tilesize / 64, 1)  # Number of DRAM transfers needed from Weight DRAM for one tile
 chunkmask = pow(2,64*8)-1
 def getchunkfromtile(tile, chunkn):
+    #print("Get chunk: ", chunkn, nchunks, chunkmask, tile)
+    #print((tile >> ((nchunks - chunkn - 1)*64*8)) & chunkmask)
     if chunkn >= nchunks:
         raise Exception("Reading more weights than are present in one tile?")
-    return (tile >> (nchunks - chunkn - 1)) & chunkmask
+    return (tile >> ((nchunks - chunkn - 1))*64*8) & chunkmask
 
 # Run Simulation
 sim_trace = SimulationTrace()
@@ -136,6 +139,9 @@ while True:
 
     # Check if we're doing a Read Weights
     if chunkaddr < nchunks:
+        #print("Sending weights from chunk {}: {}".format(chunkaddr, getchunkfromtile(weighttile, chunkaddr)))
+        #print(getchunkfromtile(weighttile, chunkaddr))
+        #print(weighttile)
         d[weights_dram_in] = getchunkfromtile(weighttile, chunkaddr)
         d[weights_dram_valid] = 1
         chunkaddr += 1
@@ -157,6 +163,8 @@ while True:
         weightaddr = sim.inspect(weights_dram_raddr)
         weighttile = weightsmem[weightaddr]
         chunkaddr = 0
+        #print("Read Weights: addr {}".format(weightaddr))
+        #print(weighttile)
         
     sim.step(d)
 

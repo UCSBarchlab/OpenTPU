@@ -223,8 +223,8 @@ def FIFO(matsize, mem_data, mem_valid, advance_fifo):
     full: there is no room in the FIFO
     '''
 
-    #probe(mem_data, "weights_dram_in")
-    #probe(mem_valid, "weights_dram_valid")
+    probe(mem_data, "fifo_dram_in")
+    probe(mem_valid, "fifo_dram_valid")
     probe(advance_fifo, "weights_advance_fifo")
     
     # Make some size parameters, declare state register
@@ -233,10 +233,12 @@ def FIFO(matsize, mem_data, mem_valid, advance_fifo):
     ddrwidth = len(mem_data)/8  # width from DDR in bytes (typically 64)
     size = 1
     while pow(2, size) < (totalsize/ddrwidth):  # compute log of number of transfers required
-        size = size << 1
+        size = size + 1
     state = Register(size)  # Number of reads to receive (each read is ddrwidth bytes)
     startup = Register(1)
     startup.next <<= 1
+
+    probe(state, "fifo_state")
     
     # Declare top row of buffer: need to write to it in ddrwidth-byte chunks
     topbuf = [ Register(ddrwidth*8) for i in range(max(1, totalsize/ddrwidth)) ]
@@ -249,14 +251,18 @@ def FIFO(matsize, mem_data, mem_valid, advance_fifo):
             droptile.next |= 1
         with clear_droptile:
             droptile.next |= 0
+
+    probe(droptile, "fifo_droptile")
+    probe(clear_droptile, "fifo_clear_droptile")
     
     # When we get data from DRAM controller, write to next buffer space
     with conditional_assignment:
         with mem_valid:
             state.next |= state + 1  # state tracks which ddrwidth-byte chunk we're writing to
             for i, reg in enumerate(topbuf):  # enumerate a decoder for write-enable signals
-                with state == Const(i):
-                    reg.next <<= mem_data
+                probe(reg, "fifo_reg{}".format(i))
+                with state == Const(i, bitwidth=size):
+                    reg.next |= mem_data
 
     # Track when first buffer is filled and when data moves out of it
     full = Register(1)  # goes high when last chunk of top buffer is filled
@@ -269,8 +275,16 @@ def FIFO(matsize, mem_data, mem_valid, advance_fifo):
 
     # Build buffers for remainder of FIFO
     buf2, buf3, buf4 = Register(tilesize), Register(tilesize), Register(tilesize)
+    probe(concat_list(topbuf), "buf1")
+    probe(buf2, "buf2")
+    probe(buf3, "buf3")
+    probe(buf4, "buf4")
+    probe(full, "buf1_full")
     # If a given row is empty, track that so we can fill immediately
     empty2, empty3, empty4 = Register(1), Register(1), Register(1)
+    probe(empty2, "buf2_empty")
+    probe(empty3, "buf3_empty")
+    probe(empty4, "buf4_empty")
 
     # Handle moving data between the buffers
     with conditional_assignment:
@@ -389,18 +403,13 @@ def systolic_setup(data_width, matsize, vec_in, waddr, valid, clearbit, lastvec,
 
 
 def MMU(data_width, matrix_size, accum_size, vector_in, accum_raddr, accum_waddr, vec_valid, accum_overwrite, lastvec, switch_weights, ddr_data, ddr_valid):  #, weights_in, weights_we):
-    '''
-
-    weights_in: TEMPORARY signal coming from off-chip with full weights tile. Replace this with the weights FIFO.
-    weights_we: write enable for weights_in.
-    '''
     
     logn1 = 1
     while pow(2, logn1) < (matrix_size + 1):
-        logn1 = logn1 << 1
+        logn1 = logn1 + 1
     logn = 1
     while pow(2, logn) < (matrix_size):
-        logn = logn << 1
+        logn = logn + 1
 
     programming = Register(1)  # if high, we're programming new weights now
     waiting = WireVector(1)  # if high, a switch is underway and we're waiting
@@ -411,6 +420,7 @@ def MMU(data_width, matrix_size, accum_size, vector_in, accum_raddr, accum_waddr
     startup.next <<= 1  # 0 only in first cycle
     weights_we = WireVector(1)
     done_programming = WireVector(1)
+    first_tile = Register(1)  # Tracks if we've programmed the first tile yet
 
     #rtl_assert(~(switch_weights & (weights_wait != 0)), Exception("Weights are not ready to switch. Need a minimum of {} + 1 cycles since last switch.".format(matrix_size)))
 
@@ -418,17 +428,6 @@ def MMU(data_width, matrix_size, accum_size, vector_in, accum_raddr, accum_waddr
     weights_tile, tile_ready, full = FIFO(matsize=matrix_size, mem_data=ddr_data, mem_valid=ddr_valid, advance_fifo=done_programming)
     probe(tile_ready, "tile_ready")
     probe(weights_tile, "FIFO_weights_out")
-    '''
-    # Instead:
-    weights_tile = Register(data_width * matrix_size * matrix_size)
-    tile_ready = Register(1)
-    with conditional_assignment:
-        with weights_we:
-            weights_tile.next |= weights_in
-            tile_ready.next |= 1
-        with otherwise:
-            tile_ready.next |= 0
-    '''
     
     matin, switchout, addrout, weout, clearout, doneout = systolic_setup(data_width=data_width, matsize=matrix_size, vec_in=vector_in, waddr=accum_waddr, valid=vec_valid, clearbit=accum_overwrite, lastvec=lastvec, switch=switch_weights)
 
@@ -447,8 +446,15 @@ def MMU(data_width, matrix_size, accum_size, vector_in, accum_raddr, accum_waddr
             weights_wait.next |= totalwait
         with waiting:  # need to wait for switch to finish propagating
             weights_wait.next |= weights_wait + 1
+        with ~first_tile & tile_ready:  # start programming the first tile
+            weights_wait.next |= totalwait  # we don't have to swait for a switch to clear
+            programming.next |= 1  # begin programming weights
+            weights_count.next |= 0
+            first_tile.next |= 1
         with switchstart:  # Weight switch initiated; begin waiting
             weights_wait.next |= 0
+            programming.next |= 1
+            weights_count.next |= 0
         with programming:  # We're pushing new weights now
             with weights_count == Const(matrix_size-1):  # We've reached the end
                 programming.next |= 0
@@ -456,9 +462,6 @@ def MMU(data_width, matrix_size, accum_size, vector_in, accum_raddr, accum_waddr
             with otherwise:  # Still programming; increment count and keep write signal high
                 weights_count.next |= weights_count + 1
                 weights_we |= 1
-        with tile_ready:  # We're not waiting or programming and a tile is ready: start programming
-            programming.next |= 1
-            weights_count.next |= 0
         
     '''
     with conditional_assignment:
