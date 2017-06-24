@@ -6,10 +6,11 @@ from collections import deque
 from math import exp
 
 import isa
+from config import MATSIZE as WIDTH
 
 args = None
 # width of the tile
-WIDTH = 16
+#WIDTH = 16
 
 
 class TPUSim(object):
@@ -51,7 +52,7 @@ class TPUSim(object):
         # all done, exit
         savepath = 'sim32.npy' if args.raw else 'sim8.npy'
         np.save(savepath, self.host_memory)
-        print(self.host_memory)
+        print(self.host_memory.astype('uint8'))
         self.program.close()
 
         print("""ALL DONE!
