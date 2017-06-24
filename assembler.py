@@ -92,7 +92,7 @@ def assemble(path, n):
     counter = 0
     for line in lines:
         line = line.partition('#')[0]
-        if not line:
+        if not line.strip():
             continue
         counter += 1
         operands = TOP_LEVEL_SEP.split(line)[1]

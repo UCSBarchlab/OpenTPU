@@ -9,7 +9,7 @@ import isa
 
 args = None
 # width of the tile
-WIDTH = 8
+WIDTH = 16
 
 
 class TPUSim(object):

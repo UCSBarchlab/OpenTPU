@@ -26,6 +26,7 @@ def decode(instruction):
     rhm_length = WireVector(8)
     mmc_length = WireVector(16)
     act_length = WireVector(8)
+    act_type = WireVector(2)
 
     rhm_addr = WireVector(config.HOST_ADDR_SIZE)
     whm_addr = WireVector(config.HOST_ADDR_SIZE)
@@ -40,6 +41,8 @@ def decode(instruction):
     op = instruction[ isa.OP_START*8 : isa.OP_END*8 ]
     probe(op, "op")
     iflags = instruction[ isa.FLAGS_START*8 : isa.FLAGS_END*8 ]
+    probe(iflags, "flags")
+    probe(accum_overwrite, "decode_overwrite")
     ilength = instruction[ isa.LEN_START*8 : isa.LEN_END*8 ]
     memaddr = instruction[ isa.ADDR_START*8 : isa.ADDR_END*8 ]
     probe(memaddr, "addr")
@@ -62,15 +65,17 @@ def decode(instruction):
             ub_addr |= ubaddr
             accum_waddr |= memaddr
             mmc_length |= ilength
-            accum_overwrite |= iflags & isa.OVERWRITE_MASK
-            switch_weights |= iflags & isa.SWITCH_MASK
+            accum_overwrite |= iflags[isa.OVERWRITE_BIT]
+            switch_weights |= iflags[isa.SWITCH_BIT]
             # TODO: MMC may deal with convolution, set/clear that flag
         with op == isa.OPCODE2BIN['ACT'][0]:
             dispatch_act |= 1
             accum_raddr |= memaddr
             ub_waddr |= ubaddr
             act_length |= ilength
+            act_type |= iflags[isa.ACT_FUNC_BITS]
             probe(act_length, "act_length")
+            probe(act_type, "act_type")
             # TODO: ACT takes function select bits
         with op == isa.OPCODE2BIN['SYNC'][0]:
             pass
@@ -85,4 +90,4 @@ def decode(instruction):
         with otherwise:
             print("otherwise")
 
-    return dispatch_mm, dispatch_act, dispatch_rhm, dispatch_whm, dispatch_halt, ub_addr, ub_raddr, ub_waddr, rhm_addr, whm_addr, rhm_length, whm_length, mmc_length, act_length, accum_raddr, accum_waddr, accum_overwrite, switch_weights, weights_raddr, weights_read
+    return dispatch_mm, dispatch_act, dispatch_rhm, dispatch_whm, dispatch_halt, ub_addr, ub_raddr, ub_waddr, rhm_addr, whm_addr, rhm_length, whm_length, mmc_length, act_length, act_type, accum_raddr, accum_waddr, accum_overwrite, switch_weights, weights_raddr, weights_read

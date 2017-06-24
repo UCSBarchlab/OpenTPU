@@ -1,7 +1,7 @@
 from pyrtl import *
 
 #set_debug_mode()
-globali = 0
+globali = 0  # To give unique numbers to each MAC
 def MAC(data_width, matrix_size, data_in, acc_in, switchw, weight_in, weight_we, weight_tag):
     '''Multiply-Accumulate unit with programmable weight.
     Inputs
@@ -160,7 +160,7 @@ def accum(size, data_in, waddr, wen, wclear, raddr, lastvec):
     '''
 
     mem = MemBlock(bitwidth=32, addrwidth=size)
-
+    
     # Writes
     with conditional_assignment:
         with wen:
@@ -188,6 +188,10 @@ def accumulators(accsize, datas_in, waddr, we, wclear, raddr, lastvec):
     '''
     Produces array of accumulators of same dimension as datas_in.
     '''
+
+    probe(we, "accum_wen")
+    probe(wclear, "accum_wclear")
+    probe(waddr, "accum_waddr")
 
     accout = [ None for i in range(len(datas_in)) ]
     waddrin = waddr
@@ -347,6 +351,7 @@ def systolic_setup(data_width, matsize, vec_in, waddr, valid, clearbit, lastvec,
     weout = wereg
     clearout = clearreg
     doneout = lastvec
+    probe(clearout, "sys_clear_in")
     # Need one extra cycle of delay for control signals before giving them to first accumulator
     # But we already did registers for first row, so cancels out
     for i in range(0, matsize):
@@ -362,6 +367,7 @@ def systolic_setup(data_width, matsize, vec_in, waddr, valid, clearbit, lastvec,
         d = Register(1)
         d.next <<= doneout
         doneout = d
+    probe(clearout, "sys_clear_out")
 
     # Generate buffers in a diagonal pattern
     for row in range(1, matsize):  # first row is done
@@ -434,6 +440,8 @@ def MMU(data_width, matrix_size, accum_size, vector_in, accum_raddr, accum_waddr
     totalwait = Const(matrix_size + 1)
     waiting <<= weights_wait != totalwait  # if high, we have to wait 
 
+    probe(waiting, "waiting")
+    
     with conditional_assignment:
         with ~startup:  # when we start, configure values to be ready to accept a new tile
             weights_wait.next |= totalwait
@@ -442,7 +450,7 @@ def MMU(data_width, matrix_size, accum_size, vector_in, accum_raddr, accum_waddr
         with switchstart:  # Weight switch initiated; begin waiting
             weights_wait.next |= 0
         with programming:  # We're pushing new weights now
-            with weights_count == Const(matrix_size):  # We've reached the end
+            with weights_count == Const(matrix_size-1):  # We've reached the end
                 programming.next |= 0
                 done_programming |= 1
             with otherwise:  # Still programming; increment count and keep write signal high
@@ -518,6 +526,7 @@ def MMU_top(data_width, matrix_size, accum_size, ub_size, start, start_addr, nve
             N.next |= N - 1
             with N == 1:  # this was the last vector
                 last |= 1
+                overwrite_reg.next |= 0
                 busy.next |= 0
             with otherwise:  # we're going to issue a vector next cycle as well
                 ub_raddr.next |= ub_raddr + 1

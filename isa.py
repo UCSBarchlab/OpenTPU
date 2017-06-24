@@ -65,8 +65,16 @@ OPCODE2BIN = {
 
 BIN2OPCODE = {v[0]: k for k, v in OPCODE2BIN.items()}
 
-SWITCH_MASK =    0b00000001
-CONV_MASK =      0b00000010
-OVERWRITE_MASK = 0b00000100  # whether MMC should overwrite accumulator value or add to it
-ACT_FUNC_MASK =  0b00011000  # 0 for nothing; 1 for ReLU; 2 for sigmoid
+SWITCH_MASK =       0b00000001
+CONV_MASK =         0b00000010
+OVERWRITE_MASK =    0b00000100  # whether MMC should overwrite accumulator value or add to it
+ACT_FUNC_MASK =     0b00011000  # 0 for nothing; 1 for ReLU; 2 for sigmoid
+FUNC_RELU_MASK =    0b00001000
+FUNC_SIGMOID_MASK = 0b00010000
+
+SWITCH_BIT        = 0
+OVERWRITE_BIT     = 2
+ACT_FUNC_BITS     = slice(3,5)
+FUNC_RELU_BIT     = 3
+FUNC_SIGMOID_BIT  = 4
 

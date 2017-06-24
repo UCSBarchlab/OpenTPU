@@ -46,6 +46,7 @@ def concat_tile(tile, bits=8):
     for row in tile:
         for x in row:
             val = (val<<bits) | (int(x) & mask)
+        #print_weight_mem({0:val})
     #return val & (size*size*bits)  # if negative, truncate bits to correct size
     return val
 
@@ -72,7 +73,8 @@ def print_weight_mem(mem, bits=8, size=8):
         while tile > 0:
             vec.append(make_vec(tile & mask))
             tile = tile >> (8*8)
-        vecs.append(vec)
+        if vec != []:
+            vecs.append(vec)
     for a, vec in enumerate(vecs):
         print(a, list(reversed(vec)))
         
@@ -86,13 +88,13 @@ print_mem(hostmem)
     
 
 weightsarray = np.load(args.weightsmem)
+size = weightsarray.shape[-1]
 #print(weightsarray)
 #print(weightsarray.shape)
 weightsmem = { a : concat_tile(tile) for a,tile in enumerate(weightsarray) }
 #weightsmem = { a : concat_vec(vec) for a,vec in enumerate(weightsarray) }
-#print(weightsmem)
 print("Weight memory:")
-print_weight_mem(weightsmem)
+print_weight_mem(weightsmem, size=size)
 
 '''
 Left-most element of each vector should be left-most in memory: use concat_list for each vector
