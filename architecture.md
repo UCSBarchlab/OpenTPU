@@ -9,9 +9,13 @@ OpenTPU uses no dynamic scheduling; all execution is fully determinstic* and the
 The following gives the hardware execution latency for each instruction on OpenTPU:
 
 RHM - _M_ cycles for reading _M_ vectors
+
 WHM - _M_ cycles for writing _M_ vectors
+
 RW - _N*N_/64 cycles for _N_x_N_ MM Array for DRAM transfer, and up to 3 additional cycles to propagate through the FIFO
+
 MMC - _L+2N_ cycles, for _N_x_N_ MM Array and _L_ vectors multiplied in the instruction
+
 ACT - _L+1_ cycles, for _L_ vectors activated in the instruction
 
 
