@@ -13,7 +13,7 @@ from activate import act_top
 accum_act_raddr = WireVector(ACC_ADDR_SIZE)  # Activate unit read address for accumulator buffers
 weights_dram_in = Input(64*8, "weights_dram_in")  # Input signal from weights DRAM controller
 weights_dram_valid = Input(1, "weights_dram_valid")  # Valid bit for weights DRAM signal
-halt = Output(1)  # When raised, stop simulation
+halt = Output(1, "halt")  # When raised, stop simulation
 
 
 ############################################################
@@ -79,11 +79,11 @@ with conditional_assignment:
 ############################################################
 
 hostmem_raddr = Output(HOST_ADDR_SIZE, "raddr")
-hostmem_rdata = Input(DWIDTH*MATSIZE)
+hostmem_rdata = Input(DWIDTH*MATSIZE, "hostmem_rdata")
 hostmem_re = Output(1, "hostmem_re")
-hostmem_waddr = Output(HOST_ADDR_SIZE)
-hostmem_wdata = Output(DWIDTH*MATSIZE)
-hostmem_we = Output(1)
+hostmem_waddr = Output(HOST_ADDR_SIZE, "hostmem_waddr")
+hostmem_wdata = Output(DWIDTH*MATSIZE, "hostmem_wdata")
+hostmem_we = Output(1, "hostmem_we")
 
 # Write Host Memory control logic
 whm_N = Register(len(whm_length))
@@ -139,8 +139,8 @@ with conditional_assignment:
 #  Weights Memory
 ############################################################
 
-weights_dram_raddr = Output(WEIGHT_DRAM_ADDR_SIZE)
-weights_dram_read = Output(1)
+weights_dram_raddr = Output(WEIGHT_DRAM_ADDR_SIZE, "weights_dram_raddr")
+weights_dram_read = Output(1, "weights_dram_read")
 
 weights_dram_raddr <<= weights_raddr
 weights_dram_read <<= weights_read

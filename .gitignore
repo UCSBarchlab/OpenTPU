@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual Environment
+.tpu/
+venv/
+env/
+ENV/
+.venv/
+
+# IDE and Editor files
+.cursor/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Generated Verilog files
+*.v
+
+# Generated binary/object files
+*.out
+
+# NumPy data files (generated test data and outputs)
+# Ignore output files but keep input/weight test fixtures
+*.npy
+!*_input.npy  # Keep input test data files
+!*_weights.npy  # Keep weight test data files
+!*_hostmem.npy  # Keep host memory test data files
+!*_label.npy  # Keep label test data files
+!*_train.npy  # Keep training data files
+# But ignore generated outputs
+*_output*.npy
+*_raw.npy
+sim*.npy
+
+# Simulation traces
+*.vcd
+trace.vcd
+
+# Debug logs
+.cursor/debug.log
+*.log
+
+# Build artifacts
+*.o
+# Note: .a files are assembly source files (like simplemult.a, boston.a), so we keep them
+# Don't ignore .a files - they're source code, not build artifacts
+
+# OS files
+Thumbs.db
+.DS_Store
